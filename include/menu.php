@@ -71,6 +71,7 @@ if (!isset($_SESSION["mikhmon"])) {
   $sactive = $shosts = $sipbind = $scookies = $susersbp = $slog = $sulog = $ssch = $slease = $strafficmonitor = '';
   $sselling = $ssett = $uplogo = $teditor = $sabout = $ssesslist = $snsettings = $ssettings = $seditor = $suplogo = '';
   $mppp = $ssecrets = $saddsecret = $spprofile = $saddpprofile = $spactive = $sbilling = '';
+  $pppsecmenu = $pppprofmenu = '';
   $umenu = $upmenu = $hamenu = $hmenu = $ibmenu = $cmenu = $lmenu = $schmenu = $settmenu = $pppmenu = '';
 
   $btnmenuactive = "font-weight: bold;background-color: #f9f9f9; color: #000000";
@@ -153,31 +154,33 @@ if (!isset($_SESSION["mikhmon"])) {
     $ssecrets = "active";
     $mpage = $_ppp_secrets;
     $pppmenu = "menu-open";
+    $pppsecmenu = "menu-open";
   } elseif ($ppp == "addsecret") {
     $mppp = "active";
     $saddsecret = "active";
     $mpage = "Tambah Secret";
     $pppmenu = "menu-open";
+    $pppsecmenu = "menu-open";
   } elseif ($ppp == "profiles" || $removepprofile != "" || $ppp == "edit-profile") {
     $mppp = "active";
     $spprofile = "active";
     $mpage = $_ppp_profiles;
     $pppmenu = "menu-open";
+    $pppprofmenu = "menu-open";
   } elseif ($ppp == "add-profile") {
     $mppp = "active";
     $saddpprofile = "active";
     $mpage = "Tambah Profile";
     $pppmenu = "menu-open";
+    $pppprofmenu = "menu-open";
   } elseif ($ppp == "active" || $removepactive != "") {
     $mppp = "active";
     $spactive = "active";
     $mpage = $_ppp_active;
     $pppmenu = "menu-open";
   } elseif ($billing != "") {
-    $mppp = "active";
     $sbilling = "active";
     $mpage = "Bot & Tagihan";
-    $pppmenu = "menu-open";
   } elseif ($sys == "scheduler" || $enablesch != "" || $disablesch != "" || $removesch != "") {
     $sysmenu = "active";
     $ssch = "active";
@@ -391,13 +394,27 @@ include('./info.php');
     <i class="fa fa-caret-down"></i>
   </div>
   <div class="dropdown-container <?= $pppmenu; ?>">
-    <a href="./?ppp=secrets&session=<?= $session; ?>" class="<?= $ssecrets; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-users"></i> Secret / Users </a>
-    <a href="./?ppp=addsecret&session=<?= $session; ?>" class="<?= $saddsecret; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-user-plus"></i> Tambah Secret </a>
-    <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-pie-chart"></i> Profiles </a>
-    <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> Tambah Profile </a>
-    <a href="./?ppp=active&session=<?= $session; ?>" class="<?= $spactive; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-exchange"></i> Active Connection </a>
-    <a href="./?billing=overview&session=<?= $session; ?>" class="<?= $sbilling; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-telegram"></i> Bot & Tagihan </a>
+    <!--secret-->
+    <div class="dropdown-btn <?= $ssecrets . $saddsecret; ?>"><i class="fa fa-users"></i> Secret
+      <i class="fa fa-caret-down"></i>
+    </div>
+    <div class="dropdown-container <?= $pppsecmenu; ?>">
+      <a href="./?ppp=secrets&session=<?= $session; ?>" class="<?= $ssecrets; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> Daftar Secret </a>
+      <a href="./?ppp=addsecret&session=<?= $session; ?>" class="<?= $saddsecret; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-user-plus"></i> Tambah Secret </a>
+    </div>
+    <!--profile-->
+    <div class="dropdown-btn <?= $spprofile . $saddpprofile; ?>"><i class="fa fa-pie-chart"></i> Profile
+      <i class="fa fa-caret-down"></i>
+    </div>
+    <div class="dropdown-container <?= $pppprofmenu; ?>">
+      <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> Daftar Profile </a>
+      <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> Tambah Profile </a>
+    </div>
+    <!--active connection-->
+    <a href="./?ppp=active&session=<?= $session; ?>" class="menu <?= $spactive; ?>"><i class="fa fa-exchange"></i> Active Connection </a>
   </div>
+  <!--bot & tagihan standalone-->
+  <a href="./?billing=overview&session=<?= $session; ?>" class="menu <?= $sbilling; ?>"><i class="fa fa-telegram"></i> Bot & Tagihan </a>
   <!--quick print-->
   <a href="./?hotspot=quick-print&session=<?= $session; ?>" class="menu <?= $squick; ?>"> <i class="fa fa-print"></i> <?= $_quick_print ?> </a>
   <!--vouchers-->
