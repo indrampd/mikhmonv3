@@ -7,6 +7,8 @@ if (!isset($_SESSION["mikhmon"])) {
     exit();
 }
 
+require_once dirname(__DIR__) . '/lib/billing.class.php';
+
 if (!empty($enablesecr)) {
     $API->comm("/ppp/secret/enable", array(
         ".id" => "$enablesecr",
@@ -19,6 +21,12 @@ if (!empty($enablesecr)) {
     $API->comm("/ppp/secret/remove", array(
         ".id" => "$removesecr",
     ));
+} elseif (!empty($lunassecret)) {
+    MikhmonBilling::markLunas($API, $lunassecret, 'Admin Web');
+} elseif (!empty($isolirsecret)) {
+    MikhmonBilling::markIsolir($API, $isolirsecret, 'Admin Web');
+} elseif (!empty($pulihsecret)) {
+    MikhmonBilling::restorePaket($API, $pulihsecret, 'Admin Web');
 }
 
 echo "<script>window.location='./?ppp=secrets&session=" . $session . "'</script>";

@@ -54,6 +54,7 @@ if (!isset($_SESSION["mikhmon"])) {
   $removereport = $removereport ?? $_GET['remove-report'] ?? '';
   $minterface = $minterface ?? $_GET['interface'] ?? '';
   $ppp = $ppp ?? $_GET['ppp'] ?? '';
+  $billing = $billing ?? $_GET['billing'] ?? '';
   $enablesecr = $enablesecr ?? $_GET['enable-pppsecret'] ?? '';
   $disablesecr = $disablesecr ?? $_GET['disable-pppsecret'] ?? '';
   $removesecr = $removesecr ?? $_GET['remove-pppsecret'] ?? '';
@@ -69,11 +70,13 @@ if (!isset($_SESSION["mikhmon"])) {
   $shome = $squick = $susersl = $susers = $sadduser = $sgenuser = $suserprofiles = $suserprof = $sadduserprof = '';
   $sactive = $shosts = $sipbind = $scookies = $susersbp = $slog = $sulog = $ssch = $slease = $strafficmonitor = '';
   $sselling = $ssett = $uplogo = $teditor = $sabout = $ssesslist = $snsettings = $ssettings = $seditor = $suplogo = '';
-  $mppp = $ssecrets = $saddsecret = $spprofile = $saddpprofile = $spactive = '';
+  $mppp = $ssecrets = $saddsecret = $spprofile = $saddpprofile = $spactive = $sbilling = '';
   $umenu = $upmenu = $hamenu = $hmenu = $ibmenu = $cmenu = $lmenu = $schmenu = $settmenu = $pppmenu = '';
 
   $btnmenuactive = "font-weight: bold;background-color: #f9f9f9; color: #000000";
-  if ($hotspot == "dashboard" || substr(end(explode("/", $url)), 0, 8) == "?session") {
+  $url_parts_m = explode("/", $url);
+  $url_last_m = end($url_parts_m);
+  if ($hotspot == "dashboard" || substr($url_last_m, 0, 8) == "?session") {
     $shome = "active";
     $mpage = $_dashboard;
   } elseif ($hotspot == "quick-print" || $hotspot == "list-quick-print") {
@@ -169,6 +172,11 @@ if (!isset($_SESSION["mikhmon"])) {
     $mppp = "active";
     $spactive = "active";
     $mpage = $_ppp_active;
+    $pppmenu = "menu-open";
+  } elseif ($billing != "") {
+    $mppp = "active";
+    $sbilling = "active";
+    $mpage = "Bot & Tagihan";
     $pppmenu = "menu-open";
   } elseif ($sys == "scheduler" || $enablesch != "" || $disablesch != "" || $removesch != "") {
     $sysmenu = "active";
@@ -388,6 +396,7 @@ include('./info.php');
     <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-pie-chart"></i> Profiles </a>
     <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> Tambah Profile </a>
     <a href="./?ppp=active&session=<?= $session; ?>" class="<?= $spactive; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-exchange"></i> Active Connection </a>
+    <a href="./?billing=overview&session=<?= $session; ?>" class="<?= $sbilling; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-telegram"></i> Bot & Tagihan </a>
   </div>
   <!--quick print-->
   <a href="./?hotspot=quick-print&session=<?= $session; ?>" class="menu <?= $squick; ?>"> <i class="fa fa-print"></i> <?= $_quick_print ?> </a>

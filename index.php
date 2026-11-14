@@ -103,6 +103,10 @@ if (!isset($_SESSION["mikhmon"])) {
   $enablesecr = $_GET['enable-pppsecret'] ?? '';
   $disablesecr = $_GET['disable-pppsecret'] ?? '';
   $removesecr = $_GET['remove-pppsecret'] ?? '';
+  $lunassecret = $_GET['lunas-secret'] ?? '';
+  $isolirsecret = $_GET['isolir-secret'] ?? '';
+  $pulihsecret = $_GET['pulih-secret'] ?? '';
+  $billing = $_GET['billing'] ?? '';
   $removepprofile = $_GET['remove-pprofile'] ?? '';
   $removepactive = $_GET['remove-pactive'] ?? '';
   $srv = $_GET['srv'] ?? '';
@@ -442,11 +446,16 @@ elseif ($report == "export") {
     include_once('./ppp/secretbyname.php');
   }
 
-// remove enable disable secret
-  elseif ($removesecr != "" || $enablesecr != "" || $disablesecr != "") {
+// remove enable disable secret or billing action
+  elseif ($removesecr != "" || $enablesecr != "" || $disablesecr != "" || $lunassecret != "" || $isolirsecret != "" || $pulihsecret != "") {
     echo "<b class='cl-w'><i class='fa fa-circle-o-notch fa-spin' style='font-size:24px'></i> Processing...</b>";
 
     include_once('./process/psecret.php');
+  }
+
+// billing overview & bot settings
+  elseif ($billing != "") {
+    include_once('./billing/index.php');
   }
 
 
@@ -505,7 +514,9 @@ elseif ($ppp == "edit-profile") {
 <script src="./js/mikhmon.js?t=<?= str_replace(" ","_",date("Y-m-d H:i:s")); ?>"></script>
 
 <?php
-if ($hotspot == "dashboard" || substr(end(explode("/", $url)), 0, 8) == "?session") {
+$url_parts = explode("/", $url);
+$url_last = end($url_parts);
+if ($hotspot == "dashboard" || substr($url_last, 0, 8) == "?session") {
   echo '<script>
     $("#r_3").load("./dashboard/aload.php?session=' . $session . '&load=logs #r_3");  
     var interval1 = "' . ($areload * 1000) . '";

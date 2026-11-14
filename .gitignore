@@ -1,0 +1,7 @@
+# Sensitive runtime data
+/data/
+/data/*
+include/config.php
+*.log
+.DS_Store
+Thumbs.db
