@@ -319,11 +319,20 @@ function showToast(msg) {
 // Server-Sent Events (SSE) Live Updates
 (function initSSE() {
     if (!window.EventSource) return;
+    // Only events newer than this page load are "live". Without last_ts the
+    // stream replays the most recent stored event on every connect, so the
+    // banner fired on every visit with a stale update.
+    var pageOpenedAt = Date.now() / 1000;
+    var lastTs = pageOpenedAt;
     try {
-        var evtSource = new EventSource('./billing/events.php?session=<?= urlencode($session); ?>');
+        var evtSource = new EventSource('./billing/events.php?session=<?= urlencode($session); ?>&last_ts=' + lastTs.toFixed(3));
         evtSource.addEventListener('billing', function(e) {
             try {
                 var d = JSON.parse(e.data);
+                if (!d || !d.target) return;
+                // Ignore anything that happened before this page was opened.
+                if (d.ts && Number(d.ts) < lastTs) return;
+                if (d.ts) lastTs = Number(d.ts);
                 if (d && d.target) {
                     showToast('⚡ Live Update: <b>' + d.target + '</b> baru saja di-<b>' + d.action.toUpperCase() + '</b> (' + (d.detail || '') + ')');
                     var targetRow = document.getElementById('row-user-' + d.target);
