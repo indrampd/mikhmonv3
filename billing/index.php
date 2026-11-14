@@ -101,7 +101,7 @@ $events = MikhmonBilling::getEvents(25);
 // Detect current webhook or recommend public tunnel endpoint
 $webhook_info = $bot->getWebhookInfo();
 $active_webhook_url = ($webhook_info['ok'] ?? false) ? ($webhook_info['result']['url'] ?? '') : '';
-$suggested_webhook = !empty($active_webhook_url) ? $active_webhook_url : "https://billing.indrampd.work/bot.php";
+$suggested_webhook = !empty($active_webhook_url) ? $active_webhook_url : "https://mikhmon.indrampd.work/bot.php";
 ?>
 
 <div class="row">

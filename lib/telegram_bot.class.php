@@ -87,7 +87,21 @@ class MikhmonTelegramBot
         if (!empty($secret_token)) {
             $payload['secret_token'] = $secret_token;
         }
-        return $this->apiCall('setWebhook', $payload);
+        $res = $this->apiCall('setWebhook', $payload);
+
+        // Auto-fallback if Telegram resolver hasn't refreshed negative DNS cache
+        if (!($res['ok'] ?? false) && str_contains($res['description'] ?? '', 'Failed to resolve host')) {
+            $host = parse_url($url, PHP_URL_HOST);
+            if (!empty($host)) {
+                $resolved_ip = gethostbyname($host);
+                if (!empty($resolved_ip) && $resolved_ip !== $host) {
+                    $payload['ip_address'] = $resolved_ip;
+                    $res = $this->apiCall('setWebhook', $payload);
+                }
+            }
+        }
+
+        return $res;
     }
 
     public function deleteWebhook()
