@@ -79,10 +79,14 @@ if (!isset($_SESSION["mikhmon"])) {
             <div class="card-body">
             <div class="row">
               <?php
+              $rendered_routers = array();
               foreach (file('./include/config.php') as $line) {
                 $value = explode("'", $line)[1];
-                if ($value == "" || $value == "mikhmon") {
-                } else { ?>
+                if ($value == "" || $value == "mikhmon" || in_array($value, $rendered_routers)) {
+                  continue;
+                }
+                $rendered_routers[] = $value;
+              ?>
                     <div class="col-12">
                         <div class="box bmh-75 box-bordered <?= $color[rand(1, 11)]; ?>">
                                 <div class="box-group">
@@ -109,7 +113,6 @@ if (!isset($_SESSION["mikhmon"])) {
                             </div>
                           </div>
               <?php
-            }
           }
           ?>
               </div>

@@ -15,28 +15,41 @@
  *  You should have received a copy of the GNU General Public License
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 // hide all error
 error_reporting(0);
-if (substr($_SERVER["REQUEST_URI"], -11) == "readcfg.php") {
+if (substr($_SERVER["REQUEST_URI"] ?? '', -11) == "readcfg.php") {
     header("Location:./");
-};
+    exit();
+}
 // read config
 
-$iphost = explode('!', $data[$session][1])[1];
-$userhost = explode('@|@', $data[$session][2])[1];
-$passwdhost = explode('#|#', $data[$session][3])[1];
-$hotspotname = explode('%', $data[$session][4])[1];
-$dnsname = explode('^', $data[$session][5])[1];
-$currency = explode('&', $data[$session][6])[1];
-$areload = explode('*', $data[$session][7])[1];
-$iface = explode('(', $data[$session][8])[1];
-$infolp = explode(')', $data[$session][9])[1];
-$idleto = explode('=', $data[$session][10])[1];
-$sesname = explode('+', $data[$session][10])[1];
-$useradm = explode('<|<', $data['mikhmon'][1])[1];
-$passadm = explode('>|>', $data['mikhmon'][2])[1];
-$livereport = explode('@!@', $data[$session][11])[1];
+if (!function_exists('cfg_val')) {
+    function cfg_val($str, $delim) {
+        if (empty($str)) return '';
+        $parts = explode($delim, $str);
+        return $parts[1] ?? '';
+    }
+}
+
+$c_sess = (!empty($session) && isset($data[$session])) ? $data[$session] : array();
+
+$iphost      = cfg_val($c_sess[1] ?? '', '!');
+$userhost    = cfg_val($c_sess[2] ?? '', '@|@');
+$passwdhost  = cfg_val($c_sess[3] ?? '', '#|#');
+$hotspotname = cfg_val($c_sess[4] ?? '', '%');
+$dnsname     = cfg_val($c_sess[5] ?? '', '^');
+$currency    = cfg_val($c_sess[6] ?? '', '&');
+$areload     = cfg_val($c_sess[7] ?? '', '*');
+$iface       = cfg_val($c_sess[8] ?? '', '(');
+$infolp      = cfg_val($c_sess[9] ?? '', ')');
+$idleto      = cfg_val($c_sess[10] ?? '', '=');
+$sesname     = cfg_val($c_sess[10] ?? '', '+');
+$useradm     = cfg_val($data['mikhmon'][1] ?? '', '<|<');
+$passadm     = cfg_val($data['mikhmon'][2] ?? '', '>|>');
+$livereport  = cfg_val($c_sess[11] ?? '', '@!@');
 
 $cekindo['indo'] = array(
     'RP', 'Rp', 'rp', 'IDR', 'idr', 'RP.', 'Rp.', 'rp.', 'IDR.', 'idr.',

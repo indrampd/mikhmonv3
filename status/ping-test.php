@@ -25,13 +25,16 @@ $session = $_GET['session'];
 $ping = $_GET['ping'];
 if(isset($ping) && !empty($session)){
     include_once('../include/config.php');
-    $iphost = explode('!', $data[$session][1])[1];
-    $host=explode(":",$iphost)[0];
-    $port=explode(":",$iphost)[1];
-    if(empty($port)){
+    $iphost = '';
+    if (isset($data[$session][1])) {
+        $parts = explode('!', $data[$session][1]);
+        $iphost = $parts[1] ?? '';
+    }
+    $hparts = explode(":", $iphost);
+    $host = $hparts[0] ?? '';
+    $port = $hparts[1] ?? 8728;
+    if (empty($port)) {
         $port = 8728;
-    }else{
-        $port = $port;
     }
 function ping($host,$port){
 	$fsock = fsockopen($host,$port,$errno,$errstr,5);

@@ -15,6 +15,8 @@
  *
  ******************************/
 
+require_once __DIR__ . '/routeros_rest.class.php';
+
 class RouterosAPI
 {
     var $debug     = false; //  Show debug information
@@ -28,6 +30,9 @@ class RouterosAPI
     var $socket;            //  Variable for storing socket resource
     var $error_no;          //  Variable for storing connection error number, if any
     var $error_str;         //  Variable for storing connection error text, if any
+
+    public $rest_client = null;
+    public $use_rest    = null; // null = auto-detect, true = force REST, false = legacy socket
 
     /* Check, can be var used in foreach  */
     public function isIterable($var)
@@ -94,6 +99,26 @@ class RouterosAPI
      */
     public function connect($ip, $login, $password)
     {
+        // Check for REST API mode (explicit or implied by scheme/port)
+        $is_rest = ($this->use_rest === true);
+        if ($this->use_rest === null) {
+            if (preg_match('#^https?://#i', $ip) || preg_match('/:(80|443|8080|8443)$/', $ip)) {
+                $is_rest = true;
+            }
+        }
+
+        if ($is_rest) {
+            $this->rest_client = new RouterosRestAPI();
+            $this->rest_client->debug = $this->debug;
+            $this->rest_client->timeout = $this->timeout;
+            $this->rest_client->attempts = $this->attempts;
+            $this->rest_client->delay = $this->delay;
+            $this->connected = $this->rest_client->connect($ip, $login, $password);
+            $this->error_no = $this->rest_client->error_no;
+            $this->error_str = $this->rest_client->error_str;
+            return $this->connected;
+        }
+
         for ($ATTEMPT = 1; $ATTEMPT <= $this->attempts; $ATTEMPT++) {
             $this->connected = false;
             $PROTOCOL = ($this->ssl ? 'ssl://' : '' );
@@ -138,6 +163,19 @@ class RouterosAPI
         if ($this->connected) {
             $this->debug('Connected...');
         } else {
+            // Auto fallback to REST API if socket connection failed
+            if ($this->use_rest === null) {
+                $this->debug('Socket API failed, trying RouterOS v7 REST API fallback...');
+                $this->rest_client = new RouterosRestAPI();
+                $this->rest_client->debug = $this->debug;
+                $this->rest_client->timeout = $this->timeout;
+                $this->rest_client->attempts = 2;
+                $this->rest_client->delay = 1;
+                if ($this->rest_client->connect($ip, $login, $password)) {
+                    $this->connected = true;
+                    return true;
+                }
+            }
             $this->debug('Error...');
         }
         return $this->connected;
@@ -151,6 +189,9 @@ class RouterosAPI
      */
     public function disconnect()
     {
+        if ($this->rest_client !== null) {
+            $this->rest_client->disconnect();
+        }
         // let's make sure this socket is still valid.  it may have been closed by something else
         if( is_resource($this->socket) ) {
             fclose($this->socket);
@@ -399,6 +440,10 @@ class RouterosAPI
      */
     public function comm($com, $arr = array())
     {
+        if ($this->rest_client !== null && $this->connected) {
+            return $this->rest_client->comm($com, $arr);
+        }
+
         $count = count($arr);
         $this->write($com, !$arr);
         $i = 0;
@@ -438,6 +483,7 @@ class RouterosAPI
 // encrypt decript
 
 function encrypt($string, $key=128) {
+	$string = (string)($string ?? '');
 	$result = '';
 	for($i=0, $k= strlen($string); $i<$k; $i++) {
 		$char = substr($string, $i, 1);
@@ -448,6 +494,7 @@ function encrypt($string, $key=128) {
 	return base64_encode($result);
 }
 function decrypt($string, $key=128) {
+	$string = (string)($string ?? '');
 	$result = '';
 	$string = base64_decode($string);
 	for($i=0, $k=strlen($string); $i< $k ; $i++) {
@@ -469,6 +516,9 @@ return $new_format;
 }
 
 function formatDTM($dtm){
+$dtm = (string)($dtm ?? '');
+$day = '';
+if (empty($dtm)) return '-';
 if(substr($dtm, 1,1) == "d" || substr($dtm, 2,1) == "d"){
     $day = explode("d",$dtm)[0]."d";
     $day = str_replace("d", "d ", str_replace("w", "w ", $day));

@@ -25,6 +25,53 @@ if (!isset($_SESSION["mikhmon"])) {
 
   include ('./include/version.php');
 
+  // Safe initialization of route and state variables
+  $hotspot = $hotspot ?? $_GET['hotspot'] ?? '';
+  $hotspotuser = $hotspotuser ?? $_GET['hotspot-user'] ?? '';
+  $userbyprofile = $userbyprofile ?? $_GET['user-by-profile'] ?? '';
+  $userbyname = $userbyname ?? $_GET['user-by-name'] ?? '';
+  $userprofile = $userprofile ?? $_GET['user-profile'] ?? '';
+  $userprofilebyname = $userprofilebyname ?? $_GET['user-profile-by-name'] ?? '';
+  $removehotspotuser = $removehotspotuser ?? $_GET['remove-hotspot-user'] ?? '';
+  $removehotspotusers = $removehotspotusers ?? $_GET['remove-hotspot-users'] ?? '';
+  $removehotspotuserbycomment = $removehotspotuserbycomment ?? $_GET['remove-hotspot-user-by-comment'] ?? '';
+  $disablehotspotuser = $disablehotspotuser ?? $_GET['disable-hotspot-user'] ?? '';
+  $enablehotspotuser = $enablehotspotuser ?? $_GET['enable-hotspot-user'] ?? '';
+  $resethotspotuser = $resethotspotuser ?? $_GET['reset-hotspot-user'] ?? '';
+  $removeuseractive = $removeuseractive ?? $_GET['remove-user-active'] ?? '';
+  $removehost = $removehost ?? $_GET['remove-host'] ?? '';
+  $removecookie = $removecookie ?? $_GET['remove-cookie'] ?? '';
+  $macbinding = $macbinding ?? $_GET['mac'] ?? '';
+  $ipbinding = $ipbinding ?? $_GET['addr'] ?? '';
+  $removeipbinding = $removeipbinding ?? $_GET['remove-ip-binding'] ?? '';
+  $enableipbinding = $enableipbinding ?? $_GET['enable-ip-binding'] ?? '';
+  $disableipbinding = $disableipbinding ?? $_GET['disable-ip-binding'] ?? '';
+  $sys = $sys ?? $_GET['system'] ?? '';
+  $enablesch = $enablesch ?? $_GET['enable-scheduler'] ?? '';
+  $disablesch = $disablesch ?? $_GET['disable-scheduler'] ?? '';
+  $removesch = $removesch ?? $_GET['remove-scheduler'] ?? '';
+  $report = $report ?? $_GET['report'] ?? '';
+  $removereport = $removereport ?? $_GET['remove-report'] ?? '';
+  $minterface = $minterface ?? $_GET['interface'] ?? '';
+  $ppp = $ppp ?? $_GET['ppp'] ?? '';
+  $enablesecr = $enablesecr ?? $_GET['enable-pppsecret'] ?? '';
+  $disablesecr = $disablesecr ?? $_GET['disable-pppsecret'] ?? '';
+  $removesecr = $removesecr ?? $_GET['remove-pppsecret'] ?? '';
+  $secretbyname = $secretbyname ?? $_GET['secret'] ?? '';
+  $removepprofile = $removepprofile ?? $_GET['remove-pprofile'] ?? '';
+  $removepactive = $removepactive ?? $_GET['remove-pactive'] ?? '';
+  $id = $id ?? $_GET['id'] ?? '';
+  $session = $session ?? $_GET['session'] ?? '';
+  $router = $router ?? $_GET['router'] ?? '';
+  $logo = $logo ?? $_GET['logo'] ?? '';
+  $url = $url ?? $_SERVER['REQUEST_URI'] ?? '';
+
+  $shome = $squick = $susersl = $susers = $sadduser = $sgenuser = $suserprofiles = $suserprof = $sadduserprof = '';
+  $sactive = $shosts = $sipbind = $scookies = $susersbp = $slog = $sulog = $ssch = $slease = $strafficmonitor = '';
+  $sselling = $ssett = $uplogo = $teditor = $sabout = $ssesslist = $snsettings = $ssettings = $seditor = $suplogo = '';
+  $mppp = $ssecrets = $saddsecret = $spprofile = $saddpprofile = $spactive = '';
+  $umenu = $upmenu = $hamenu = $hmenu = $ibmenu = $cmenu = $lmenu = $schmenu = $settmenu = $pppmenu = '';
+
   $btnmenuactive = "font-weight: bold;background-color: #f9f9f9; color: #000000";
   if ($hotspot == "dashboard" || substr(end(explode("/", $url)), 0, 8) == "?session") {
     $shome = "active";
@@ -98,15 +145,25 @@ if (!isset($_SESSION["mikhmon"])) {
     $sulog = "active";
     $mpage = $_user_log;
     $lmenu = "menu-open";
-  } elseif ($ppp == "secrets" || $ppp == "addsecret" || $enablesecr != "" || $disablesecr != "" || $removesecr != "" || $secretbyname != "") {
+  } elseif ($ppp == "secrets" || $enablesecr != "" || $disablesecr != "" || $removesecr != "" || $secretbyname != "") {
     $mppp = "active";
     $ssecrets = "active";
     $mpage = $_ppp_secrets;
     $pppmenu = "menu-open";
-  } elseif ($ppp == "profiles" || $removepprofile != "" || $ppp == "add-profile" || $ppp == "edit-profile"  ) {
+  } elseif ($ppp == "addsecret") {
+    $mppp = "active";
+    $saddsecret = "active";
+    $mpage = "Tambah Secret";
+    $pppmenu = "menu-open";
+  } elseif ($ppp == "profiles" || $removepprofile != "" || $ppp == "edit-profile") {
     $mppp = "active";
     $spprofile = "active";
     $mpage = $_ppp_profiles;
+    $pppmenu = "menu-open";
+  } elseif ($ppp == "add-profile") {
+    $mppp = "active";
+    $saddpprofile = "active";
+    $mpage = "Tambah Profile";
     $pppmenu = "menu-open";
   } elseif ($ppp == "active" || $removepactive != "") {
     $mppp = "active";
@@ -266,15 +323,17 @@ include('./info.php');
   <select class="connect optfa ses text-right mr-t-10 pd-5">
     <option id="MikhmonSession" value="<?= $session; ?>"><?= $hotspotname; ?></option>
       <?php
+      $menu_routers = array();
       foreach (file('./include/config.php') as $line) {
         $sesname = explode("'", $line)[1];
-        if ($sesname == "" || $sesname== "mikhmon") {
-        } else {
+        if ($sesname == "" || $sesname == "mikhmon" || in_array($sesname, $menu_routers)) {
+          continue;
+        }
+        $menu_routers[] = $sesname;
         if($sesname == $session){
           echo '<option value="' . $sesname. '">'.$sesname. ' &#x2666;</option>';
         }else{
           echo '<option value="' . $sesname. '">'.$sesname. '</option>';
-        }
         }
       }
       ?>
@@ -318,6 +377,17 @@ include('./info.php');
   <a href="./?hotspot=ipbinding&session=<?= $session; ?>" class="menu <?= $sipbind; ?>"><i class=" fa fa-address-book"></i> <?= $_ip_bindings ?></a>
   <!--cookies-->
    <a href="./?hotspot=cookies&session=<?= $session; ?>" class="menu <?= $scookies; ?>"><i class=" fa fa-hourglass"></i> <?= $_hotspot_cookies ?></a>
+  </div>
+  <!--pppoe-->
+  <div class="dropdown-btn <?= $mppp; ?>"><i class="fa fa-plug"></i> PPPoE
+    <i class="fa fa-caret-down"></i>
+  </div>
+  <div class="dropdown-container <?= $pppmenu; ?>">
+    <a href="./?ppp=secrets&session=<?= $session; ?>" class="<?= $ssecrets; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-users"></i> Secret / Users </a>
+    <a href="./?ppp=addsecret&session=<?= $session; ?>" class="<?= $saddsecret; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-user-plus"></i> Tambah Secret </a>
+    <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-pie-chart"></i> Profiles </a>
+    <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> Tambah Profile </a>
+    <a href="./?ppp=active&session=<?= $session; ?>" class="<?= $spactive; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-exchange"></i> Active Connection </a>
   </div>
   <!--quick print-->
   <a href="./?hotspot=quick-print&session=<?= $session; ?>" class="menu <?= $squick; ?>"> <i class="fa fa-print"></i> <?= $_quick_print ?> </a>
@@ -379,11 +449,6 @@ include('./include/info.php');
 } ?>
 
 <div id="main">  
-<div id="loading" class="lds-dual-ring"></div>
-<?php if($hotspot == 'template-editor' || $id == 'editor'){
-echo '<div class="main-container">';
-}else{
-  echo '<div class="main-container" style="display:none">';
-}
-?>
+<div id="loading" class="lds-dual-ring" style="display:none;"></div>
+<div class="main-container">
 

@@ -1,6 +1,7 @@
 <?php
 // function  format bytes
 function formatBytes($size, $decimals = 0){
+$size = (float)($size ?? 0);
 $unit = array(
 '0' => 'Byte',
 '1' => 'KiB',
@@ -22,6 +23,7 @@ return round($size, $decimals).' '.$unit[$i];
 
 // function  format bytes2
 function formatBytes2($size, $decimals = 0){
+$size = (float)($size ?? 0);
 $unit = array(
 '0' => 'Byte',
 '1' => 'KB',
@@ -44,6 +46,7 @@ return round($size, $decimals).''.$unit[$i];
 
 // function  format bites
 function formatBites($size, $decimals = 0){
+$size = (float)($size ?? 0);
 $unit = array(
 '0' => 'bps',
 '1' => 'kbps',

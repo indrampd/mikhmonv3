@@ -16,20 +16,21 @@
  *  along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 session_start();
-// hide all error
+ini_set('display_errors', '0');
 error_reporting(0);
 
-ob_start("ob_gzhandler");
+// Gzip is handled natively by Nginx
+// ob_start("ob_gzhandler");
 
 // check url
-$url = $_SERVER['REQUEST_URI'];
+$url = $_SERVER['REQUEST_URI'] ?? '';
 
 // load session MikroTik
-$session = $_GET['session'];
-$id = $_GET['id'];
-$c = $_GET['c'];
-$router = $_GET['router'];
-$logo = $_GET['logo'];
+$session = $_GET['session'] ?? '';
+$id = $_GET['id'] ?? '';
+$c = $_GET['c'] ?? '';
+$router = $_GET['router'] ?? '';
+$logo = $_GET['logo'] ?? '';
 
 $ids = array(
   "editor",
@@ -107,12 +108,14 @@ if ($id == "login" || substr($url, -1) == "p") {
   include_once('./settings/settings.php');
   echo '
   <script type="text/javascript">
-    document.getElementById("sessname").onkeypress = function(e) {
-    var chr = String.fromCharCode(e.which);
-    if (" _!@#$%^&*()+=;|?,~".indexOf(chr) >= 0)
-        return false;
-    };
-    </script>';
+    var sInput = document.getElementById("sessname");
+    if (sInput) {
+      sInput.onkeypress = function(e) {
+        var chr = String.fromCharCode(e.which);
+        if (" _!@#$%^&*()+=;|?,~".indexOf(chr) >= 0) return false;
+      };
+    }
+  </script>';
 } elseif ($id == "connect"  && !empty($session)) {
   ini_set("max_execution_time",5);  
   include_once('./include/menu.php');
@@ -142,18 +145,21 @@ if ($id == "login" || substr($url, -1) == "p") {
   include_once('./process/reboot.php');
 } elseif ($id == "shutdown"  && !empty($session)) {
   include_once('./process/shutdown.php');
-} elseif ($id == "remove-session" && $session != "") {
+} elseif ($id == "remove-session" && !empty($session)) {
   include_once('./include/menu.php');
-  $fc = file("./include/config.php" );
-  $f = fopen("./include/config.php", "w");
-  $q = "'";
-  $rem = '$data['.$q.$session.$q.']';
-  foreach ($fc as $line) {
-    if (!strstr($line, $rem))
-      fputs($f, $line);
+  $lines = file("./include/config.php", FILE_IGNORE_NEW_LINES);
+  $rem = '$data[\'' . $session . '\']';
+  $newLines = array();
+  if (is_array($lines)) {
+    foreach ($lines as $line) {
+      if (!empty(trim($line)) && !str_starts_with(trim($line), $rem)) {
+        $newLines[] = $line;
+      }
+    }
   }
-  fclose($f);
+  file_put_contents("./include/config.php", implode("\n", $newLines) . "\n");
   echo "<script>window.location='./admin.php?id=sessions'</script>";
+  exit();
 } elseif ($id == "about") {
   include_once('./include/menu.php');
   include_once('./include/about.php');

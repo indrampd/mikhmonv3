@@ -18,16 +18,13 @@
 session_start();
 // hide all error
 error_reporting(0);
-// check url
+// Gzip is handled by Nginx
+// ob_start("ob_gzhandler");
 
-ob_start("ob_gzhandler");
-
-
-$url = $_SERVER['REQUEST_URI'];
+$url = $_SERVER['REQUEST_URI'] ?? '';
 
 // load session MikroTik
-
-$session = $_GET['session'];
+$session = $_GET['session'] ?? '';
 
 if (!isset($_SESSION["mikhmon"])) {
   header("Location:./admin.php?id=login");
@@ -76,45 +73,45 @@ if (!isset($_SESSION["mikhmon"])) {
   
 
 // get variable
-  $hotspot = $_GET['hotspot'];
-  $hotspotuser = $_GET['hotspot-user'];
-  $userbyname = $_GET['hotspot-user'];
-  $removeuseractive = $_GET['remove-user-active'];
-  $removehost = $_GET['remove-host'];
-  $removecookie = $_GET['remove-cookie'];
-  $removeipbinding = $_GET['remove-ip-binding'];
-  $removehotspotuser = $_GET['remove-hotspot-user'];
-  $removehotspotusers = $_GET['remove-hotspot-users'];
-  $removeuserprofile = $_GET['remove-user-profile'];
-  $resethotspotuser = $_GET['reset-hotspot-user'];
-  $removehotspotuserbycomment = $_GET['remove-hotspot-user-by-comment'];
-  $removeexpiredhotspotuser = $_GET['remove-hotspot-user-expired'];
-  $enablehotspotuser = $_GET['enable-hotspot-user'];
-  $disablehotspotuser = $_GET['disable-hotspot-user'];
-  $enableipbinding = $_GET['enable-ip-binding'];
-  $disableipbinding = $_GET['disable-ip-binding'];
-  $userprofile = $_GET['user-profile'];
-  $userprofilebyname = $_GET['user-profile'];
-  $sys = $_GET['system'];
-  $enablesch = $_GET['enable-scheduler'];
-  $disablesch = $_GET['disable-scheduler'];
-  $removesch = $_GET['remove-scheduler'];
-  $macbinding = $_GET['mac'];
-  $ipbinding = $_GET['addr'];
-  $ppp = $_GET['ppp'];
-  $secretbyname = $_GET['secret'];
-  $enablesecr = $_GET['enable-pppsecret'];
-  $disablesecr = $_GET['disable-pppsecret'];
-  $removesecr = $_GET['remove-pppsecret'];
-  $removepprofile = $_GET['remove-pprofile'];
-  $removepactive = $_GET['remove-pactive'];
-  $srv = $_GET['srv'];
-  $prof = $_GET['profile'];
-  $comm = $_GET['comment'];
-  $serveractive = $_GET['server'];
-  $report = $_GET['report'];
-  $removereport = $_GET['remove-report'];
-  $minterface = $_GET['interface'];
+  $hotspot = $_GET['hotspot'] ?? '';
+  $hotspotuser = $_GET['hotspot-user'] ?? '';
+  $userbyname = $_GET['hotspot-user'] ?? '';
+  $removeuseractive = $_GET['remove-user-active'] ?? '';
+  $removehost = $_GET['remove-host'] ?? '';
+  $removecookie = $_GET['remove-cookie'] ?? '';
+  $removeipbinding = $_GET['remove-ip-binding'] ?? '';
+  $removehotspotuser = $_GET['remove-hotspot-user'] ?? '';
+  $removehotspotusers = $_GET['remove-hotspot-users'] ?? '';
+  $removeuserprofile = $_GET['remove-user-profile'] ?? '';
+  $resethotspotuser = $_GET['reset-hotspot-user'] ?? '';
+  $removehotspotuserbycomment = $_GET['remove-hotspot-user-by-comment'] ?? '';
+  $removeexpiredhotspotuser = $_GET['remove-hotspot-user-expired'] ?? '';
+  $enablehotspotuser = $_GET['enable-hotspot-user'] ?? '';
+  $disablehotspotuser = $_GET['disable-hotspot-user'] ?? '';
+  $enableipbinding = $_GET['enable-ip-binding'] ?? '';
+  $disableipbinding = $_GET['disable-ip-binding'] ?? '';
+  $userprofile = $_GET['user-profile'] ?? '';
+  $userprofilebyname = $_GET['user-profile'] ?? '';
+  $sys = $_GET['system'] ?? '';
+  $enablesch = $_GET['enable-scheduler'] ?? '';
+  $disablesch = $_GET['disable-scheduler'] ?? '';
+  $removesch = $_GET['remove-scheduler'] ?? '';
+  $macbinding = $_GET['mac'] ?? '';
+  $ipbinding = $_GET['addr'] ?? '';
+  $ppp = $_GET['ppp'] ?? '';
+  $secretbyname = $_GET['secret'] ?? '';
+  $enablesecr = $_GET['enable-pppsecret'] ?? '';
+  $disablesecr = $_GET['disable-pppsecret'] ?? '';
+  $removesecr = $_GET['remove-pppsecret'] ?? '';
+  $removepprofile = $_GET['remove-pprofile'] ?? '';
+  $removepactive = $_GET['remove-pactive'] ?? '';
+  $srv = $_GET['srv'] ?? '';
+  $prof = $_GET['profile'] ?? '';
+  $comm = $_GET['comment'] ?? '';
+  $serveractive = $_GET['server'] ?? '';
+  $report = $_GET['report'] ?? '';
+  $removereport = $_GET['remove-report'] ?? '';
+  $minterface = $_GET['interface'] ?? '';
 
 
   $pagehotspot = array('users','hosts','ipbinding','cookies','log','dhcp-leases');
