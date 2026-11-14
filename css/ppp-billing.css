@@ -289,8 +289,11 @@ html[data-theme="pink"] {
    surface with a left rule instead of a full fill. */
 #liveAlertBox {
   display: none;
+  box-sizing: border-box;
+  max-width: 100%;
   margin: 0 0 12px;
   padding: 9px 12px;
+  overflow-wrap: anywhere;
   border: 1px solid var(--ppp-border);
   border-left: 3px solid var(--ppp-accent);
   border-radius: var(--ppp-radius);
@@ -314,3 +317,23 @@ html[data-theme="pink"] {
 }
 .secret-table td:last-child { white-space: nowrap; }
 .secret-table td:last-child > * + * { margin-left: 4px; }
+
+/* ---------- box model correction ----------
+   Mikhmon's theme sheet only sets box-sizing on inputs, so block elements use
+   the CSS default (content-box). A full-width banner therefore adds its own
+   padding and border on top of 100% and overflows its card by exactly the
+   padding: the live update banner measured 1214px inside a 1206px card.
+   Scoping border-box to the components this stylesheet owns fixes it without
+   touching the theme's own layouts. */
+.ui-section,
+.ui-section-head,
+.ui-section-body,
+.ui-field-grid,
+.ui-field,
+.kpi-bar,
+.kpi-pill,
+.secret-table,
+.btn-action-sm,
+.user-subinfo {
+  box-sizing: border-box;
+}
