@@ -142,20 +142,18 @@ $TotalReg = count($filtered_users);
     <tr>
       <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Username</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Password</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Remote IP</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Pelanggan</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profile ROS</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Paket Asli</th>
-      <th class="pointer text-center" title="Click to sort" style="width:95px;"><i class="fa fa-sort"></i> Koneksi</th>
-      <th class="pointer text-center" title="Click to sort" style="width:115px;"><i class="fa fa-sort"></i> Tagihan</th>
+      <th class="pointer text-center" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
       <th class="text-center" style="width:165px;">Aksi Cepat</th>
     </tr>
     </thead>
     <tbody id="tbody">
     <?php
     if ($TotalReg === 0) {
-        echo "<tr><td colspan='10' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
+        echo "<tr><td colspan='8' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
     }
 
     for ($i = 0; $i < $TotalReg; $i++) {
@@ -189,22 +187,18 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 2: Username
+        // Status dot color for connection: green if online, grey if offline (like User Profile list)
+        $dot_color = $is_online ? "text-green" : "text-muted";
+        $dot_title = $is_online ? "Online" : "Offline";
+
+        // Col 2: Username with Status Dot & Edit Icon
         echo "<td>";
-        echo "<a title='Edit User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13px; font-weight:600;'>";
-        echo "<i class='fa fa-user'></i> " . htmlspecialchars($uname) . "</a>";
+        echo "<a title='Edit User " . htmlspecialchars($uname) . " (" . $dot_title . ")' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13px; font-weight:600;'>";
+        echo "<i class='fa fa-edit text-muted'></i> <i class='fa fa-circle " . $dot_color . "' title='" . $dot_title . "' style='font-size:10px;'></i> " . htmlspecialchars($uname);
+        echo "</a>";
         echo "</td>";
 
-        // Col 3: Password
-        echo "<td>";
-        if ($upass !== '') {
-            echo "<code style='font-size:11px; padding:2px 5px;'>" . htmlspecialchars($upass) . "</code>";
-        } else {
-            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 4: Remote IP / Service
+        // Col 3: Remote IP / Service
         echo "<td>";
         if (!empty($uremote) && $uremote !== '-') {
             echo "<span style='font-size:12px;'><i class='fa fa-desktop text-muted'></i> " . htmlspecialchars($uremote) . "</span>";
@@ -213,7 +207,7 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 5: Pelanggan (Nama Asli / Label)
+        // Col 4: Pelanggan (Nama Asli / Label)
         echo "<td>";
         if (!empty($parsed['label'])) {
             echo "<strong style='font-size:13px;'><i class='fa fa-id-card text-muted'></i> " . htmlspecialchars($parsed['label']) . "</strong>";
@@ -222,14 +216,14 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 6: Profile ROS
+        // Col 5: Profile ROS
         echo "<td>";
         echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "' style='font-weight:500; font-size:12.5px;'>";
         echo htmlspecialchars($uprofile);
         echo "</a>";
         echo "</td>";
 
-        // Col 7: Paket Asli (pkg)
+        // Col 6: Paket Asli (pkg)
         echo "<td>";
         if (!empty($parsed['pkg'])) {
             echo "<span class='badge bg-secondary radius-3' style='font-size:11px;'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
@@ -238,16 +232,7 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 4: Status Koneksi
-        echo "<td class='text-center'>";
-        if ($is_online) {
-            echo "<span class='badge bg-success pd-5 radius-3' style='font-size:11px;'><i class='fa fa-circle'></i> Online</span>";
-        } else {
-            echo "<span class='badge bg-secondary pd-5 radius-3' style='font-size:11px; opacity:0.65;'><i class='fa fa-circle-o'></i> Offline</span>";
-        }
-        echo "</td>";
-
-        // Col 5: Status Tagihan Badge
+        // Col 7: Status Tagihan Badge
         echo "<td class='text-center' id='badge-tagihan-" . htmlspecialchars($uname) . "'>";
         echo "<span class='badge bg-" . $stat['badge'] . " pd-5 radius-3' style='font-size:11px;' title='" . htmlspecialchars($stat['hint']) . "'>";
         echo "<i class='fa " . $stat['icon'] . "'></i> " . htmlspecialchars($stat['label']);

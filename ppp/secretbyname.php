@@ -107,8 +107,19 @@ if (isset($_POST['save'])) {
               <td><strong><?= htmlspecialchars($sec['name']); ?></strong></td>
             </tr>
             <tr>
-              <td>Password</td>
-              <td><input type="text" class="form-control" name="pass" required value="<?= htmlspecialchars($sec['password'] ?? ''); ?>"></td>
+              <td class="align-middle">Password</td>
+              <td>
+                <div class="input-group">
+                  <div class="input-group-11 col-box-10">
+                    <input class="group-item group-item-l" id="passmk" type="password" name="pass" title="Password Secret" value="<?= htmlspecialchars($sec['password'] ?? ''); ?>" required="1"/>
+                  </div>
+                  <div class="input-group-1 col-box-2">
+                    <div class="group-item group-item-r pd-2p5 text-center align-middle">
+                      <input title="Show/Hide Password" type="checkbox" onclick="PassMk()">
+                    </div>
+                  </div>
+                </div>
+              </td>
             </tr>
             <tr>
               <td>Service</td>
@@ -192,5 +203,16 @@ function updateCommentPreview() {
     } else if (val.trim() !== '') {
         commInput.value = val.trim() + '|pkg:' + newProf;
     }
+}
+</script>
+
+<script>
+function PassMk(){
+  var x = document.getElementById('passmk');
+  if (x.type === 'password') {
+    x.type = 'text';
+  } else {
+    x.type = 'password';
+  }
 }
 </script>
