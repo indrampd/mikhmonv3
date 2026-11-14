@@ -87,10 +87,10 @@ $TotalReg = count($getprofile);
           }
           echo "</td>";
 
-          echo "<td><a title='Edit Profile " . htmlspecialchars($name) . "' href='{$edit_url}'><i class='fa fa-edit'></i> <strong>" . htmlspecialchars($name) . "</strong></a></td>";
+          echo "<td><a title='Open Profile " . htmlspecialchars($name) . "' href='{$edit_url}'><i class='fa fa-edit'></i> " . htmlspecialchars($name) . "</a></td>";
           echo "<td>" . htmlspecialchars($local_addr) . "</td>";
           echo "<td>" . htmlspecialchars($remote_addr) . "</td>";
-          echo "<td><strong>" . htmlspecialchars($rate_limit) . "</strong></td>";
+          echo "<td>" . htmlspecialchars($rate_limit) . "</td>";
           echo "<td>" . htmlspecialchars($only_one) . "</td>";
           echo "<td>" . htmlspecialchars($dns_server) . "</td>";
           echo "<td>" . htmlspecialchars($comment) . "</td>";

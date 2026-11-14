@@ -308,7 +308,7 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
                     echo "<td><small class='text-grey'>" . htmlspecialchars($ev['ts']) . "</small></td>";
                     echo "<td><small>" . htmlspecialchars($ev['tg_id']) . "</small></td>";
                     echo "<td class='text-center'><span class='badge bg-{$badge} pd-2 radius-3' style='font-size:11px;'>" . strtoupper(htmlspecialchars($ev['action'])) . "</span></td>";
-                    echo "<td><strong>" . htmlspecialchars($ev['target']) . "</strong></td>";
+                    echo "<td>" . htmlspecialchars($ev['target']) . "</td>";
                     echo "<td><small class='text-grey'>" . htmlspecialchars($ev['detail']) . "</small></td>";
                     echo "</tr>";
                 }

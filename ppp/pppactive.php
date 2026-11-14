@@ -87,7 +87,7 @@ $TotalReg = count($getactive);
 
           echo "<td><span class='badge bg-info'>" . htmlspecialchars($service) . "</span></td>";
           echo "<td><a title='Open Secret " . htmlspecialchars($user) . "' href='./?secret=" . urlencode($user) . "&session=" . $session . "'><i class='fa fa-edit'></i> " . htmlspecialchars($user) . "</a></td>";
-          echo "<td><strong>" . htmlspecialchars($address) . "</strong></td>";
+          echo "<td>" . htmlspecialchars($address) . "</td>";
           echo "<td><code>" . htmlspecialchars($caller) . "</code></td>";
           echo "<td class='text-right'>" . htmlspecialchars($uptime) . "</td>";
           echo "<td>" . htmlspecialchars($encoding) . "</td>";

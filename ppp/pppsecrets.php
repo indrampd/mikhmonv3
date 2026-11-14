@@ -228,7 +228,7 @@ $TotalReg = count($filtered_users);
         $tagihan_dot = ($stat['code'] === 'lunas') ? 'text-green' : (($stat['code'] === 'tenggang') ? 'text-yellow' : 'text-danger');
         echo "<td class='text-center' id='badge-tagihan-" . htmlspecialchars($uname) . "'>";
         echo "<i class='fa fa-circle " . $tagihan_dot . "' style='font-size:10px;' title='" . htmlspecialchars($stat['hint']) . "'></i> ";
-        echo "<strong>" . htmlspecialchars($stat['label']) . "</strong>";
+        echo htmlspecialchars($stat['label']);
         if (!empty($parsed['lunas'])) {
             echo " <span class='text-muted' style='font-size:11.5px;'>• " . htmlspecialchars($parsed['lunas']) . "</span>";
         }
