@@ -125,7 +125,8 @@ class MikhmonTelegramBot
         if (!empty($r_cfg['host']) && !empty($r_cfg['user'])) {
             $api = new RouterosAPI();
             $api->timeout = 5;
-            $api->attempts = 2;
+            $api->attempts = 1;
+            $api->delay = 0;
             $pass = $r_cfg['password'] ?? '';
             if ($api->connect($r_cfg['host'], $r_cfg['user'], $pass)) {
                 return $api;
@@ -145,7 +146,8 @@ class MikhmonTelegramBot
                     if (!empty($ip) && !empty($user)) {
                         $api = new RouterosAPI();
                         $api->timeout = 5;
-                        $api->attempts = 2;
+                        $api->attempts = 1;
+                        $api->delay = 0;
                         if ($api->connect($ip, $user, $pass)) {
                             return $api;
                         }

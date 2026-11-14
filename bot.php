@@ -30,9 +30,18 @@ if (!empty($expected_secret)) {
 }
 
 $update = json_decode($raw, true);
+
+// Acknowledge before touching RouterOS or the Telegram API. Telegram only
+// cares that the update was received; holding the response open for the full
+// command made webhook requests take 1.4s and, when the router stalled, left
+// FPM workers busy long enough to trigger retries.
+http_response_code(200);
+echo "OK";
+
+if (function_exists('fastcgi_finish_request')) {
+    fastcgi_finish_request();
+}
+
 if (is_array($update)) {
     $bot->handleUpdate($update);
 }
-
-http_response_code(200);
-echo "OK";
