@@ -108,8 +108,8 @@ if (isset($_POST['save'])) {
             <tr>
               <td>Comment</td>
               <td>
-                <input type="text" class="form-control" name="comment" id="ppp_comment" placeholder="Keterangan / Alamat Pelanggan (misal: Ummi)">
-                <small class="text-muted"><i class="fa fa-info-circle"></i> Cukup isi nama/alamat (contoh: <code>Ummi</code>), format <code>pkg:</code> dan <code>lunas:YYYY-MM</code> otomatis dibuatkan.</small>
+                <input type="text" class="form-control" name="comment" id="ppp_comment" placeholder="Keterangan / Alamat Pelanggan (misal: User)">
+                <small class="text-muted"><i class="fa fa-info-circle"></i> Cukup isi nama/alamat (contoh: <code>User</code>), format <code>pkg:</code> dan <code>lunas:YYYY-MM</code> otomatis dibuatkan.</small>
               </td>
             </tr>
             <tr>

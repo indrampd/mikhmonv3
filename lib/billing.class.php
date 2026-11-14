@@ -145,15 +145,11 @@ class MikhmonBilling
         $label = ($parsed['label'] !== '') ? $parsed['label'] : trim((string)$currentComment);
         $isIsolated = self::isIsolirProfile($selectedProfile);
 
-        if ($isNewUser) {
-            $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;
-            $lunas = $parsed['lunas'] ?: self::currentMonth();
-            $tgl = $parsed['tgl'];
-        } else {
-            $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;
-            $lunas = $parsed['lunas'];
-            $tgl = $parsed['tgl'];
-        }
+        $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;
+        // Jika belum ada lunas: (misal baru pertama diatur atau baru diisi nama),
+        // otomatis berikan bulan berjalan agar status lunas/tenggat langsung aktif.
+        $lunas = $parsed['lunas'] ?: self::currentMonth();
+        $tgl = $parsed['tgl'];
 
         return self::buildComment($currentComment, $pkg, $lunas, $tgl, $label);
     }
