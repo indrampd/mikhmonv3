@@ -100,15 +100,15 @@ $TotalReg = count($filtered_users);
     </span>
   </div>
 
-  <!-- Search & Filter Controls -->
+  <!-- Search & Filter Controls (Hotspot Mikhmon Style) -->
   <div class="row mr-b-10">
-    <div class="col-12">
+    <div class="col-6 pd-t-5 pd-b-5">
       <div class="input-group">
         <div class="input-group-4 col-box-4">
-          <input id="filterTable" type="text" style="padding:6px 10px;" class="group-item group-item-l" placeholder="<?= $_search ?? "Cari nama, IP, komentar..." ?>">
+          <input id="filterTable" type="text" style="padding:5.8px;" class="group-item group-item-l" placeholder="<?= $_search ?? "Cari user, IP, komentar..." ?>">
         </div>
         <div class="input-group-4 col-box-4">
-          <select style="padding:6px 8px;" class="group-item" onchange="location = this.value; loader()" title="Filter by Profile">
+          <select style="padding:5px;" class="group-item group-item-m" onchange="location = this.value; loader()" title="Filter by Profile">
             <option value="./?ppp=secrets&profile=all&tagihan=<?= $filter_tagihan; ?>&session=<?= $session; ?>"><?= $_show_all ?? "Semua Profile" ?> (<?= $TotalRegAll; ?>)</option>
             <?php
             for ($i = 0; $i < $TotalReg2; $i++) {
@@ -120,7 +120,7 @@ $TotalReg = count($filtered_users);
           </select>
         </div>
         <div class="input-group-4 col-box-4">
-          <select style="padding:6px 8px;" class="group-item group-item-r" onchange="location = this.value; loader()" title="Filter by Status Tagihan">
+          <select style="padding:5px;" class="group-item group-item-r" onchange="location = this.value; loader()" title="Filter by Status Tagihan">
             <option value="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=all&session=<?= $session; ?>" <?= $filter_tagihan === 'all' ? 'selected' : ''; ?>>Semua Status Tagihan</option>
             <option value="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=lunas&session=<?= $session; ?>" <?= $filter_tagihan === 'lunas' ? 'selected' : ''; ?>>Lunas / Aktif</option>
             <option value="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=tenggang&session=<?= $session; ?>" <?= $filter_tagihan === 'tenggang' ? 'selected' : ''; ?>>Masa Tenggang</option>
@@ -224,17 +224,17 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 7: Status Tagihan Badge
+        // Col 6: Status Tagihan (1 row inline: dot status + label + dot + Tahun-Bulan)
+        $tagihan_dot = ($stat['code'] === 'lunas') ? 'text-green' : (($stat['code'] === 'tenggang') ? 'text-yellow' : 'text-danger');
         echo "<td class='text-center' id='badge-tagihan-" . htmlspecialchars($uname) . "'>";
-        echo "<span class='badge bg-" . $stat['badge'] . " pd-5 radius-3' style='font-size:11px;' title='" . htmlspecialchars($stat['hint']) . "'>";
-        echo "<i class='fa " . $stat['icon'] . "'></i> " . htmlspecialchars($stat['label']);
-        echo "</span>";
+        echo "<i class='fa fa-circle " . $tagihan_dot . "' style='font-size:10px;' title='" . htmlspecialchars($stat['hint']) . "'></i> ";
+        echo "<strong>" . htmlspecialchars($stat['label']) . "</strong>";
         if (!empty($parsed['lunas'])) {
-            echo "<small style='display:block; font-size:10px; margin-top:2px; opacity:0.75;'>Bln: " . htmlspecialchars($parsed['lunas']) . "</small>";
+            echo " <span class='text-muted' style='font-size:11.5px;'>• " . htmlspecialchars($parsed['lunas']) . "</span>";
         }
         echo "</td>";
 
-        // Col 6: Aksi Cepat
+        // Col 7: Aksi Cepat (2 tombol aksi saja: Lunas + Isolir/Pulih)
         echo "<td class='text-center'>";
         echo "<div style='display:inline-flex; gap:4px; align-items:center;'>";
         // Button Lunas
@@ -245,8 +245,6 @@ $TotalReg = count($filtered_users);
         } else {
             echo "<button type='button' class='btn bg-danger radius-3 pd-2 pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-ban'></i> Isolir</button>";
         }
-        // Button Edit
-        echo "<a href='./?secret=" . urlencode($uname) . "&session=" . $session . "' class='btn box-bordered text-grey radius-3 pd-2 pointer' title='Edit Secret'><i class='fa fa-pencil'></i></a>";
         echo "</div>";
         echo "</td>";
 
