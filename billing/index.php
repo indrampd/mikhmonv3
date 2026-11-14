@@ -112,7 +112,7 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
 }
 ?>
 
-<link rel="stylesheet" href="./css/ppp-billing.css">
+<link rel="stylesheet" href="./css/ppp-billing.css?v=3">
 
 <div class="row">
 <div class="col-12">

@@ -20,7 +20,7 @@ session_start();
 error_reporting(0);
 ?>
 <!DOCTYPE html>
-<html>
+<html data-theme="<?= $theme; ?>">
 	<head>
 		<title>MIKHMON <?= $hotspotname; ?></title>
 		<meta charset="utf-8">

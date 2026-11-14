@@ -64,7 +64,7 @@ if (is_array($getuser)) {
 $TotalReg = count($filtered_users);
 ?>
 
-<link rel="stylesheet" href="./css/ppp-billing.css">
+<link rel="stylesheet" href="./css/ppp-billing.css?v=3">
 
 <div class="row">
 <div class="col-12">

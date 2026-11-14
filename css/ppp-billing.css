@@ -1,164 +1,316 @@
 /* ==========================================================================
-   Mikhmon PPPoE / Billing UI — shared design language
+   PPPoE / Billing shared styles
    Used by: ppp/pppsecrets.php, billing/index.php
+
+   Every value comes from the active Mikhmon theme tokens below, so these two
+   pages follow the same palette, radius and density as the rest of the panel
+   in all five themes instead of hardcoding their own colours.
    ========================================================================== */
 
-/* Consistent row rhythm inside data tables */
-.secret-table th,
-.secret-table td {
-  vertical-align: middle !important;
-  padding: 9px 10px !important;
-}
-.secret-table thead th {
-  font-size: 12.5px;
-  letter-spacing: 0.2px;
-  white-space: nowrap;
+/* ---------- theme tokens ----------
+   Fallbacks are the dark theme, matching include/theme.php default. The
+   per-theme blocks at the bottom override them. */
+:root {
+  --ppp-surface: #3a4149;
+  --ppp-sunken: #2f353a;
+  --ppp-border: #23282c;
+  --ppp-text: #e4e7ea;
+  --ppp-muted: #a4b0b8;
+  --ppp-accent: #20a8d8;
+  --ppp-ok: #4dbd74;
+  --ppp-warn: #f8cb00;
+  --ppp-bad: #f86c6b;
+  --ppp-radius: 3px;
 }
 
-/* Compact KPI pills used across secrets + billing overview */
+/* ---------- KPI row ---------- */
 .kpi-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  margin-bottom: 14px;
+  margin: 0 0 12px;
 }
 .kpi-pill {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 5px 11px;
-  border-radius: 14px;
+  padding: 4px 10px;
+  border: 1px solid var(--ppp-border);
+  border-radius: var(--ppp-radius);
+  background: var(--ppp-sunken);
+  color: var(--ppp-text);
   font-size: 12px;
   font-weight: 500;
+  line-height: 1.6;
   text-decoration: none;
-  cursor: pointer;
-  transition: transform 0.12s ease, opacity 0.12s ease;
-  border: 1px solid rgba(128, 128, 128, 0.28);
-  background: transparent;
-  color: inherit;
+  transition: border-color .12s ease;
 }
-.kpi-pill:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+a.kpi-pill:hover {
+  border-color: var(--ppp-accent);
   text-decoration: none;
 }
 .kpi-pill strong { font-weight: 700; }
 .kpi-pill.is-static { cursor: default; }
-.kpi-pill.is-static:hover { transform: none; }
 
-/* Utility dots */
+/* ---------- status markers ---------- */
 .status-dot {
   display: inline-block;
   width: 8px;
   height: 8px;
   border-radius: 50%;
+  background: var(--ppp-muted);
 }
+.status-dot.ok { background: var(--ppp-ok); }
+.status-dot.warn { background: var(--ppp-warn); }
+.status-dot.bad { background: var(--ppp-bad); }
 
-/* Row sub-information line */
+/* ---------- rows ---------- */
 .user-subinfo {
   display: block;
+  margin-top: 2px;
+  color: var(--ppp-muted);
   font-size: 11px;
-  margin-top: 3px;
-  opacity: 0.72;
   line-height: 1.5;
 }
 .user-subinfo code {
-  font-size: 10.5px;
   padding: 1px 4px;
+  border-radius: 2px;
+  background: var(--ppp-sunken);
+  font-size: 10.5px;
 }
 
-/* Small inline action buttons */
-.btn-action-sm {
-  padding: 3px 9px !important;
-  font-size: 11px !important;
-  line-height: 1.5 !important;
-  border-radius: 3px !important;
-  border: none;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  white-space: nowrap;
+/* ---------- field grid ---------- */
+.ui-field-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px 14px;
 }
-.btn-action-sm:hover { opacity: 0.88; }
+.ui-field-grid .span-2 { grid-column: 1 / -1; }
+.ui-field label {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ppp-muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .2px;
+}
+.ui-field input,
+.ui-field select,
+.ui-field textarea {
+  width: 100%;
+  padding: 6px 9px;
+  border: 1px solid var(--ppp-border);
+  border-radius: var(--ppp-radius);
+  background: var(--ppp-sunken);
+  color: var(--ppp-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+.ui-field input:focus,
+.ui-field select:focus,
+.ui-field textarea:focus {
+  outline: 0;
+  border-color: var(--ppp-accent);
+  box-shadow: 0 0 0 2px rgba(32, 168, 216, .2);
+}
+.ui-field .ui-hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--ppp-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
 
-/* Section blocks (replaces nested cards) */
+/* ---------- sections ---------- */
 .ui-section {
-  border: 1px solid rgba(128, 128, 128, 0.22);
-  border-radius: 4px;
-  margin-bottom: 18px;
-  overflow: hidden;
+  margin: 0 0 12px;
+  border: 1px solid var(--ppp-border);
+  border-radius: var(--ppp-radius);
+  background: var(--ppp-surface);
 }
 .ui-section-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 10px 14px;
-  border-bottom: 1px solid rgba(128, 128, 128, 0.18);
-  background: rgba(128, 128, 128, 0.06);
-}
-.ui-section-head h4 {
-  margin: 0;
-  font-size: 13.5px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-.ui-section-body { padding: 14px; }
-
-/* Form grid inside sections */
-.ui-field-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px 16px;
-}
-.ui-field-grid .span-2 { grid-column: 1 / -1; }
-.ui-field label {
-  display: block;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  margin-bottom: 4px;
-  opacity: 0.8;
-  text-transform: uppercase;
-}
-.ui-field input,
-.ui-field select {
-  width: 100% !important;
-  padding: 7px 9px !important;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--ppp-border);
   font-size: 13px;
-  border-radius: 3px;
+  font-weight: 600;
+  color: var(--ppp-text);
 }
-.ui-field .ui-hint {
-  display: block;
-  font-size: 11px;
-  margin-top: 5px;
-  opacity: 0.62;
-  line-height: 1.5;
-}
+.ui-section-body { padding: 12px; }
 
-/* Command reference list */
+/* ---------- command reference ---------- */
 .cmd-list {
   margin: 0;
   padding: 0;
   list-style: none;
   font-size: 12.5px;
-  line-height: 1.85;
+  line-height: 1.9;
 }
 .cmd-list li { display: flex; gap: 8px; align-items: baseline; }
 .cmd-list code {
   flex: 0 0 auto;
-  font-size: 11.5px;
   padding: 1px 6px;
+  border-radius: 2px;
+  background: var(--ppp-sunken);
+  font-size: 11.5px;
 }
-.cmd-list span { opacity: 0.8; }
+.cmd-list span { color: var(--ppp-muted); }
 
-/* Responsive: single column on narrow viewports */
+/* ---------- compact row actions ---------- */
+.btn-action-sm {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--ppp-radius);
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.btn-action-sm:hover { text-decoration: none; opacity: .88; }
+
+/* ---------- table rhythm ---------- */
+.secret-table th,
+.secret-table td { vertical-align: middle; padding: 8px 10px; }
+.secret-table thead th {
+  font-size: 12px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--ppp-border);
+}
+
+/* ---------- responsive ---------- */
 @media (max-width: 900px) {
   .ui-field-grid { grid-template-columns: 1fr; }
   .ui-field-grid .span-2 { grid-column: auto; }
 }
+
+/* ---------- per-theme tokens ---------- */
+/* Light family: white cards on a pale page. */
+html[data-theme="light"] {
+  --ppp-surface: #ffffff;
+  --ppp-sunken: #e9ebee;
+  --ppp-border: #c1c1c1;
+  --ppp-text: #3e3e3e;
+  --ppp-muted: #6b7780;
+}
+html[data-theme="blue"] {
+  --ppp-surface: #ffffff;
+  --ppp-sunken: #e9ebee;
+  --ppp-border: #c1c1c1;
+  --ppp-text: #3e3e3e;
+  --ppp-muted: #6b7780;
+  --ppp-accent: #008bc9;
+}
+html[data-theme="green"] {
+  --ppp-surface: #ffffff;
+  --ppp-sunken: #e9ebee;
+  --ppp-border: #c1c1c1;
+  --ppp-text: #3e3e3e;
+  --ppp-muted: #6b7780;
+  --ppp-accent: #4dbd74;
+}
+html[data-theme="pink"] {
+  --ppp-surface: #ffe6f1;
+  --ppp-sunken: #ebd5df;
+  --ppp-border: #d9bccb;
+  --ppp-text: #4a2d3a;
+  --ppp-muted: #8a6b78;
+  --ppp-accent: #e83e8c;
+}
+
+/* ---------- buttons ----------
+   Mikhmon's theme sheet defines .bg-success and friends but not the Bootstrap
+   .btn-success / .btn-info / .btn-danger modifiers these two pages use, so the
+   buttons fell back to the UA default (white). Map them onto the tokens. */
+.ppp-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+
+.ui-section .btn.btn-success,
+.ui-section .btn.btn-info,
+.ui-section .btn.btn-danger,
+.ui-section .btn.btn-primary,
+.ui-section .btn.btn-warning {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 11px;
+  border: 1px solid var(--ppp-border);
+  border-radius: var(--ppp-radius);
+  background: var(--ppp-sunken);
+  color: var(--ppp-text);
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.5;
+  text-decoration: none;
+  cursor: pointer;
+  transition: border-color .12s ease;
+}
+.ui-section .btn.btn-success:hover,
+.ui-section .btn.btn-info:hover,
+.ui-section .btn.btn-danger:hover,
+.ui-section .btn.btn-primary:hover,
+.ui-section .btn.btn-warning:hover {
+  border-color: var(--ppp-accent);
+  text-decoration: none;
+}
+.ui-section .btn.btn-success i { color: var(--ppp-ok); }
+.ui-section .btn.btn-info i { color: var(--ppp-accent); }
+.ui-section .btn.btn-danger i { color: var(--ppp-bad); }
+
+/* the primary action keeps a tinted fill so the row has one clear lead */
+.ui-section .btn.btn-success {
+  border-color: var(--ppp-ok);
+  background: color-mix(in srgb, var(--ppp-ok) 16%, var(--ppp-sunken));
+}
+
+/* ---------- two-column field grid ----------
+   .span-2 must be the only full-width item; mixed spans were stretching the
+   numeric field next to "Tgl Batas Bayar". */
+.ui-field-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+.ui-field-grid .ui-field:not(.span-2) { min-width: 0; }
+.ui-field-grid input,
+.ui-field-grid select { width: 100%; box-sizing: border-box; }
+
+/* ---------- section header badge ---------- */
+.ui-section-head .badge,
+.ui-section-head .kpi-pill {
+  font-size: 11px;
+  padding: 3px 9px;
+}
+
+/* ---------- live update banner ----------
+   The SSE banner uses .bg-info, which the theme sheet paints bright blue. On a
+   dark console that reads as an error state, so it gets the accent-tinted
+   surface with a left rule instead of a full fill. */
+#liveAlertBox {
+  display: none;
+  margin: 0 0 12px;
+  padding: 9px 12px;
+  border: 1px solid var(--ppp-border);
+  border-left: 3px solid var(--ppp-accent);
+  border-radius: var(--ppp-radius);
+  background: var(--ppp-surface);
+  color: var(--ppp-text);
+  font-size: 12.5px;
+}
+#liveAlertBox.bg-info { background: var(--ppp-surface); color: var(--ppp-text); }
+#liveAlertBox b { color: var(--ppp-accent); }
+
+/* ---------- row action buttons ----------
+   The quick-action column mixes labelled buttons with an icon-only edit link;
+   give the icon one the same hit area and a tooltip-visible label. */
+.btn-action-sm {
+  justify-content: center;
+  min-height: 24px;
+  min-width: 26px;
+}
+.btn-action-sm:has(i:only-child) {
+  padding: 2px 6px;
+}
+.secret-table td:last-child { white-space: nowrap; }
+.secret-table td:last-child > * + * { margin-left: 4px; }
