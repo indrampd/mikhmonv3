@@ -166,8 +166,13 @@ class MikhmonBilling
     public static function getStatus($profile, $comment, $cutoffDay = null)
     {
         $parsed = self::parseComment($comment);
-        $pkg = $parsed['pkg'];
         $lunas = $parsed['lunas'];
+
+        // Same rule as markLunas: the profile is the purchased package unless
+        // it is the isolation one, in which case only the comment still knows.
+        $pkg = self::isIsolirProfile($profile)
+            ? ($parsed['pkg'] ?: null)
+            : trim((string)$profile);
 
         if (empty($pkg)) {
             return array(
@@ -175,7 +180,7 @@ class MikhmonBilling
                 'label' => 'Tanpa Paket',
                 'badge' => 'secondary',
                 'icon' => 'fa-circle-o',
-                'hint' => 'Belum ada paket (pkg:) di comment'
+                'hint' => 'Belum ada paket pada secret ini'
             );
         }
 
@@ -302,6 +307,24 @@ class MikhmonBilling
         return array($row['name'] ?? '', '');
     }
 
+    /**
+     * True when the secret's current profile is an isolation profile.
+     * Isolation profiles are named "pppoe-ISOLIR" by default but the name is
+     * configurable, so compare the configured value as well as the prefix.
+     */
+    public static function isIsolirProfile($profile, $isolirProfile = null)
+    {
+        $profile = trim((string)$profile);
+        if ($profile === '') {
+            return false;
+        }
+        $isolirProfile = $isolirProfile ?: self::DEFAULT_ISOLIR;
+        if (strcasecmp($profile, $isolirProfile) === 0) {
+            return true;
+        }
+        return stripos($profile, 'isolir') !== false;
+    }
+
     public static function markLunas($API, $username, $by = 'Web Mikhmon', $actor = '')
     {
         list($cust, $resolveError) = self::resolveSecret($API, $username);
@@ -313,7 +336,19 @@ class MikhmonBilling
         $profile = $cust['profile'] ?? '';
         $parsed = self::parseComment($comment);
 
-        $targetPkg = $parsed['pkg'] ?? $profile;
+        // While isolated the profile reads pppoe-ISOLIR, so the purchased
+        // package lives in the comment. Outside isolation the profile is the
+        // purchase: trusting pkg: there reverted an upgrade the moment the
+        // customer was un-isolated.
+        $isIsolated = self::isIsolirProfile($profile);
+        $targetPkg = $isIsolated
+            ? ($parsed['pkg'] ?: $profile)
+            : $profile;
+
+        if (empty($targetPkg)) {
+            return array('success' => false, 'message' => "Profil paket untuk {$username} tidak diketahui.");
+        }
+
         $newComment = self::buildComment($comment, $targetPkg, self::currentMonth(), $parsed['tgl']);
 
         // Update secret
@@ -355,8 +390,13 @@ class MikhmonBilling
         $comment = $cust['comment'] ?? '';
         $parsed = self::parseComment($comment);
 
-        // Ensure original package is preserved in comment before switching to isolir
-        $origPkg = $parsed['pkg'] ?: $cust['profile'];
+        // Preserve the purchased package before the profile becomes the isolir
+        // one. When not isolated yet the live profile is the truth, so an
+        // upgraded package wins over a stale pkg: in the comment.
+        $currentProfile = $cust['profile'] ?? '';
+        $origPkg = self::isIsolirProfile($currentProfile)
+            ? ($parsed['pkg'] ?: $currentProfile)
+            : $currentProfile;
         $newComment = self::buildComment($comment, $origPkg, $parsed['lunas'], $parsed['tgl']);
 
         $API->comm("/ppp/secret/set", array(
