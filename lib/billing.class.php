@@ -143,6 +143,8 @@ class MikhmonBilling
     {
         $parsed = self::parseComment($currentComment);
         $label = ($parsed['label'] !== '') ? $parsed['label'] : trim((string)$currentComment);
+        // Sanitize pipe character (|) in label to prevent breaking comment token delimiters
+        $label = str_replace('|', '-', $label);
         $isIsolated = self::isIsolirProfile($selectedProfile);
 
         $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;

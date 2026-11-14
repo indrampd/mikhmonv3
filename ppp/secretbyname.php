@@ -44,14 +44,24 @@ if (isset($_POST['save'])) {
         "disabled" => $disabled,
         "comment" => $comment,
     );
+
+    // If address is specified, update it. If explicitly emptied, use RouterOS /unset
+    // to actually clear the value (sending empty string causes trap error, omitting keeps old value).
+    $unset_keys = array();
     foreach (array("local-address" => $local_addr, "remote-address" => $remote_addr) as $key => $val) {
-        $params[$key] = ($val === "" || $val === null) ? "0.0.0.0/0" : $val;
-        if ($val === "") {
-            unset($params[$key]);
+        if ($val !== "") {
+            $params[$key] = $val;
+        } else if (!empty($sec[$key])) {
+            $unset_keys[] = $key;
         }
     }
 
     $res = $API->comm("/ppp/secret/set", $params);
+    if (empty($res["!trap"])) {
+        foreach ($unset_keys as $ukey) {
+            $API->comm("/ppp/secret/unset", array(".id" => $sec['.id'], "value-name" => $ukey));
+        }
+    }
     if (is_array($res) && !empty($res["!trap"])) {
         $err = "";
         foreach ($res["!trap"] as $trap) {

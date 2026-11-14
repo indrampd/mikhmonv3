@@ -176,7 +176,7 @@ $TotalReg = count($filtered_users);
         
         // Col 1: Action (Lock / Delete)
         echo "<td style='text-align:center;'>";
-        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (" . addslashes($uname) . ")?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}else{}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;";
+        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}else{}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;";
         if ($udisabled) {
             $uriprocess = "'./?enable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
             echo '<span class="text-warning pointer" title="Aktifkan Akun" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-lock"></i></span>';
@@ -246,12 +246,12 @@ $TotalReg = count($filtered_users);
         echo "<td class='text-center'>";
         echo "<div style='display:inline-flex; gap:4px; align-items:center;'>";
         // Button Lunas
-        echo "<button type='button' class='btn bg-success radius-3 pd-2 pointer' title='Tandai Lunas Bulan Ini' onclick=\"quickBillingAction('lunas', '" . addslashes($uname) . "')\"><i class='fa fa-check'></i> Lunas</button>";
+        echo "<button type='button' class='btn bg-success radius-3 pd-2 pointer' title='Tandai Lunas Bulan Ini' onclick=\"quickBillingAction('lunas', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-check'></i> Lunas</button>";
         // Button Isolir / Pulih
         if ($is_isolir) {
-            echo "<button type='button' class='btn bg-warning radius-3 pd-2 pointer' title='Pulihkan Paket Asal' onclick=\"quickBillingAction('pulih', '" . addslashes($uname) . "')\"><i class='fa fa-refresh'></i> Pulih</button>";
+            echo "<button type='button' class='btn bg-warning radius-3 pd-2 pointer' title='Pulihkan Paket Asal' onclick=\"quickBillingAction('pulih', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-refresh'></i> Pulih</button>";
         } else {
-            echo "<button type='button' class='btn bg-danger radius-3 pd-2 pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', '" . addslashes($uname) . "')\"><i class='fa fa-ban'></i> Isolir</button>";
+            echo "<button type='button' class='btn bg-danger radius-3 pd-2 pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-ban'></i> Isolir</button>";
         }
         // Button Edit
         echo "<a href='./?secret=" . urlencode($uname) . "&session=" . $session . "' class='btn box-bordered text-grey radius-3 pd-2 pointer' title='Edit Secret'><i class='fa fa-pencil'></i></a>";
