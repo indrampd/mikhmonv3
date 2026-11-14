@@ -164,6 +164,7 @@ if ($id == "login" || substr($url, -1) == "p") {
     }
   }
   file_put_contents("./include/config.php", implode("\n", $newLines) . "\n");
+  if (function_exists("opcache_invalidate")) { @opcache_invalidate(realpath("./include/config.php") ?: "./include/config.php", true); }
   echo "<script>window.location='./admin.php?id=sessions'</script>";
   exit();
 } elseif ($id == "about") {

@@ -40,6 +40,7 @@ if (!isset($_SESSION["mikhmon"])) {
       $content = file_get_contents("./include/config.php");
       $newcontent = str_replace((string)$cari[$i], (string)$ganti[$i], "$content");
       file_put_contents("./include/config.php", "$newcontent");
+      if (function_exists("opcache_invalidate")) { @opcache_invalidate(realpath("./include/config.php") ?: "./include/config.php", true); }
     }
 
   

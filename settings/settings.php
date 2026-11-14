@@ -34,6 +34,7 @@ if (!isset($_SESSION["mikhmon"])) {
     $content = file_get_contents("./include/config.php");
     $newcontent = str_replace((string)$search, (string)$replace, "$content");
     file_put_contents("./include/config.php", "$newcontent");
+    if (function_exists("opcache_invalidate")) { @opcache_invalidate(realpath("./include/config.php") ?: "./include/config.php", true); }
 
     $session = $router;
     $sesname = "";
@@ -116,6 +117,7 @@ if (!isset($_SESSION["mikhmon"])) {
     }
 
     file_put_contents('./include/config.php', implode("\n", $newLines) . "\n");
+    if (function_exists("opcache_invalidate")) { @opcache_invalidate(realpath("./include/config.php") ?: "./include/config.php", true); }
     $_SESSION["connect"] = "";
     echo "<script>window.location='./admin.php?id=settings&session=" . $sesname . "'</script>";
     exit();
