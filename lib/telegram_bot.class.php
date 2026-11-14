@@ -407,10 +407,12 @@ class MikhmonTelegramBot
         }
     }
 
-    private function cmdCek($chat_id, $tg_id, $user)
+    private function cmdCek($chat_id, $tg_id, $user, $msg_id = null)
     {
         if (empty($user)) {
-            $this->sendMessage($chat_id, "Gunakan: <code>/cek [nama_user]</code>\nContoh: <code>/cek indra</code>");
+            // Same click-through list as /lunas and /isolir: typing a name is
+            // optional when the customer can be picked from a button.
+            $this->showPickUser($chat_id, 'pickcek', 'Pilih pelanggan untuk dicek:', $msg_id);
             return;
         }
 
@@ -453,18 +455,27 @@ class MikhmonTelegramBot
             $html .= "Uptime     : " . ($active_info['uptime'] ?? '-') . "\n";
         }
 
+        // Actions address the resolved secret name, not the raw query: a partial
+        // "deni" must not be written back into callback_data.
         $btns = array(
             array(
-                array('text' => '✅ Tandai Lunas', 'callback_data' => "lunas:{$user}"),
-                array('text' => '🔴 Isolir', 'callback_data' => "isolir:{$user}")
+                array('text' => '✅ Tandai Lunas', 'callback_data' => "lunas:{$resolved}"),
+                array('text' => '🔴 Isolir', 'callback_data' => "isolir:{$resolved}")
+            ),
+            array(
+                array('text' => '↩️ Kembali ke daftar', 'callback_data' => 'pickcek')
             )
         );
         $reply_markup = array('inline_keyboard' => $btns);
 
-        $this->sendMessage($chat_id, $html, $reply_markup);
+        if (!empty($msg_id)) {
+            $this->editMessageText($chat_id, $msg_id, $html, $reply_markup);
+        } else {
+            $this->sendMessage($chat_id, $html, $reply_markup);
+        }
     }
 
-    private function showPickUser($chat_id, $action, $title)
+    private function showPickUser($chat_id, $action, $title, $msg_id = null)
     {
         $api = $this->getRouterAPI();
         if (!$api) {
@@ -500,7 +511,11 @@ class MikhmonTelegramBot
             array('text' => '❌ Batal', 'callback_data' => 'batal')
         );
 
-        $this->sendMessage($chat_id, "<b>{$title}</b>", array('inline_keyboard' => $keyboard));
+        if (!empty($msg_id)) {
+            $this->editMessageText($chat_id, $msg_id, "<b>{$title}</b>", array('inline_keyboard' => $keyboard));
+        } else {
+            $this->sendMessage($chat_id, "<b>{$title}</b>", array('inline_keyboard' => $keyboard));
+        }
     }
 
     /* ==========================================================
@@ -534,6 +549,19 @@ class MikhmonTelegramBot
             return;
         }
 
+        if ($data === 'pickcek') {
+            $this->answerCallback($cb_id, 'Memuat daftar...');
+            $this->showPickUser($chat_id, 'pickcek', 'Pilih pelanggan untuk dicek:', $msg_id);
+            return;
+        }
+
+        if (str_starts_with($data, 'pickcek:')) {
+            $user = substr($data, 8);
+            $this->answerCallback($cb_id, "Memuat {$user}...");
+            $this->cmdCek($chat_id, $tg_id, $user, $msg_id);
+            return;
+        }
+
         if (str_starts_with($data, 'lunas:')) {
             $user = substr($data, 6);
             if (!$this->isAuthorized($tg_id, $chat_id, 'lunas')) {
@@ -552,7 +580,7 @@ class MikhmonTelegramBot
 
             if ($res['success']) {
                 $this->answerCallback($cb_id, "✅ {$user} ditandai LUNAS!", false);
-                $this->cmdCek($chat_id, $tg_id, $user);
+                $this->cmdCek($chat_id, $tg_id, $user, $msg_id);
             } else {
                 $this->answerCallback($cb_id, $res['message'], true);
             }
@@ -577,7 +605,7 @@ class MikhmonTelegramBot
 
             if ($res['success']) {
                 $this->answerCallback($cb_id, "🔴 {$user} berhasil diisolir!", false);
-                $this->cmdCek($chat_id, $tg_id, $user);
+                $this->cmdCek($chat_id, $tg_id, $user, $msg_id);
             } else {
                 $this->answerCallback($cb_id, $res['message'], true);
             }
