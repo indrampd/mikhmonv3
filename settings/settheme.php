@@ -48,17 +48,27 @@ if (empty($gettheme)) {
 
 } else {
     if (in_array($gettheme, $mtheme)) {
-        include_once('./include/headhtml.php');
         $gen = '<?php $theme="' . $gettheme . '"; $themecolor="'.$getthemecolor.'";?>';
-        $stheme = './include/theme.php';
-        $handle = fopen($stheme, 'w') or die('Cannot open file:  ' . $stheme);
-        $data = $gen;
-        fwrite($handle, $data);
+        $stheme = __DIR__ . '/../include/theme.php';
+        $written = @file_put_contents($stheme, $gen);
+        if ($written === false) {
+            // The file is owned by whoever checked the repo out; PHP runs as
+            // www-data, so a wrong owner silently made the theme switch do
+            // nothing. Report it instead of pretending it worked.
+            include_once('./include/headhtml.php');
+            echo '<div style="max-width:640px;margin:10% auto;padding:18px;border:1px solid #f86c6b;border-radius:4px;background:#3a4149;color:#e4e7ea;font-family:sans-serif;">'
+               . '<h3 style="margin:0 0 8px;color:#f86c6b;">Tema gagal disimpan</h3>'
+               . '<p style="margin:0 0 8px;">File <code>include/theme.php</code> tidak dapat ditulis oleh proses web.</p>'
+               . '<p style="margin:0;">Jalankan di server: <code>chown 82:82 include/theme.php &amp;&amp; chmod 664 include/theme.php</code></p>'
+               . '</div>';
+            exit();
+        }
         $_SESSION['theme'] = $gettheme;
         $_SESSION['themecolor'] = $getthemecolor;
+        include_once('./include/headhtml.php');
         echo '<center><div style="padding-top:10%;"><i class="fa fa-circle-o-notch fa-spin" style="font-size:40px"></i></div><h3>Load '.$gettheme.' theme...</h3></center>';
         echo "<script>window.location='" . $url2 . "'</script>";
-        
+
     } else {
         include_once('./include/headhtml.php');
         echo '<center><div style="padding-top:10%;"><i class="fa fa-circle-o-notch fa-spin" style="font-size:40px"></i></div><h3>'.$gettheme.' theme not found...</h3></center>';
