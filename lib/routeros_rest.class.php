@@ -21,6 +21,13 @@ class RouterosRestAPI
     private $ip        = '';
     private $username  = '';
     private $password  = '';
+    private $ch        = null;
+    private $cached_resource = null;
+
+    public function __destruct()
+    {
+        $this->disconnect();
+    }
 
     public function isIterable($var)
     {
@@ -73,6 +80,7 @@ class RouterosRestAPI
             $res = $this->request('GET', '/system/resource');
             if ($res !== false) {
                 $this->connected = true;
+                $this->cached_resource = (is_array($res) && !empty($res) && !isset($res[0])) ? array($res) : (is_array($res) ? $res : array());
                 $this->debug("Connected via REST API successfully.");
                 return true;
             }
@@ -89,6 +97,11 @@ class RouterosRestAPI
     public function disconnect()
     {
         $this->connected = false;
+        $this->cached_resource = null;
+        if ($this->ch !== null) {
+            @curl_close($this->ch);
+            $this->ch = null;
+        }
     }
 
     public function comm($com, $arr = array())
@@ -124,6 +137,13 @@ class RouterosRestAPI
 
     private function handlePrint($path, $arr)
     {
+        // Re-use cached resource obtained during connect() to save 1 full round trip
+        if ($path === '/system/resource' && empty($arr) && $this->cached_resource !== null) {
+            $cached = $this->cached_resource;
+            $this->cached_resource = null;
+            return $cached;
+        }
+
         $is_count_only = false;
         $query_params = array();
 
@@ -279,20 +299,25 @@ class RouterosRestAPI
             $url .= '?' . http_build_query($query);
         }
 
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-        curl_setopt($ch, CURLOPT_TIMEOUT, $this->timeout);
-        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
+        if ($this->ch === null) {
+            $this->ch = curl_init();
+            curl_setopt($this->ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($this->ch, CURLOPT_TIMEOUT, $this->timeout);
+            curl_setopt($this->ch, CURLOPT_CONNECTTIMEOUT, $this->timeout);
+            curl_setopt($this->ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($this->ch, CURLOPT_SSL_VERIFYHOST, false);
+            curl_setopt($this->ch, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_1_1);
+            curl_setopt($this->ch, CURLOPT_FORBID_REUSE, false);
+        }
 
-        // MikroTik routers frequently use self-signed TLS certificates
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
+        $ch = $this->ch;
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
 
         $headers = array(
-            'Authorization: Basic ' . $this->auth,
-            'Accept: application/json'
+            'Authorization: *** ' . $this->auth,
+            'Accept: application/json',
+            'Connection: keep-alive'
         );
 
         if ($body !== null && in_array($method, array('POST', 'PUT', 'PATCH'))) {
@@ -300,6 +325,8 @@ class RouterosRestAPI
             curl_setopt($ch, CURLOPT_POSTFIELDS, $json_payload);
             $headers[] = 'Content-Type: application/json';
             $headers[] = 'Content-Length: ' . strlen($json_payload);
+        } else {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, '');
         }
 
         curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
@@ -308,7 +335,6 @@ class RouterosRestAPI
         $http_code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $this->error_no = curl_errno($ch);
         $this->error_str = curl_error($ch);
-        curl_close($ch);
 
         $this->debug("{$method} {$url} -> HTTP {$http_code}");
 

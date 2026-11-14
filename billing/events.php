@@ -8,6 +8,8 @@ if (!isset($_SESSION["mikhmon"])) {
     http_response_code(401);
     exit();
 }
+// Release session lock immediately so parallel HTTP requests and user clicks never hang
+session_write_close();
 
 // Disable compression & buffering
 @ini_set('zlib.output_compression', '0');

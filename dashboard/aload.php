@@ -20,10 +20,12 @@ session_start();
 error_reporting(0);
 if (!isset($_SESSION["mikhmon"])) {
   header("Location:../admin.php?id=login");
-} else {
+  exit();
+}
 // load session MikroTik
   $session = $_GET['session'];
   $load = $_GET['load'];
+  session_write_close();
 
 // lang
 include('../include/lang.php');
@@ -277,7 +279,4 @@ include('../lang/'.$langid.'.php');
 
 <?php 
 }
-
-}
-
 ?>

@@ -20,10 +20,12 @@ session_start();
 error_reporting(0);
 if(!isset($_SESSION["mikhmon"])){
   header("Location:../admin.php?id=login");
-}else{
+  exit();
+}
 // load session MikroTik
 $session = $_GET['session'];
 $interface = $_GET['iface'];
+session_write_close();
 //echo $interface
 // load config
 include('../include/config.php');
@@ -65,5 +67,4 @@ $API->debug = false;
 	array_push($result,$rows);
 	array_push($result,$rows2);
   print json_encode($result);
-}
 ?>
