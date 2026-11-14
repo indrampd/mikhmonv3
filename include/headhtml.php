@@ -31,15 +31,16 @@ error_reporting(0);
 		<!-- Theme color -->
 		<meta name="theme-color" content="<?= $themecolor ?>" />
 		<!-- Font Awesome -->
-		<link rel="stylesheet" type="text/css" href="css/font-awesome/css/font-awesome.min.css" />
-		<!-- Mikhmon UI -->
-		<link rel="stylesheet" href="css/mikhmon-ui.<?= $theme; ?>.min.css">
+		<link rel="stylesheet" type="text/css" href="css/font-awesome/css/font-awesome.min.css?v=<?= @filemtime("css/font-awesome/css/font-awesome.min.css") ?: "1" ?>" />
+		<!-- Mikhmon UI. The version query is the file mtime, so a changed
+		     stylesheet always gets a new URL and can never be served stale. -->
+		<link rel="stylesheet" href="css/mikhmon-ui.<?= $theme; ?>.min.css?v=<?= @filemtime("css/mikhmon-ui." . $theme . ".min.css") ?: "1" ?>">
 		<!-- favicon -->
 		<link rel="icon" href="./img/favicon.png" />
 		<!-- jQuery -->
 		<script src="js/jquery.min.js"></script>
 		<!-- pace -->
-		<link href="css/pace.<?= $theme; ?>.css" rel="stylesheet" />
+		<link href="css/pace.<?= $theme; ?>.css?v=<?= @filemtime("css/pace." . $theme . ".css") ?: "1" ?>" rel="stylesheet" />
 		<script src="js/pace.min.js"></script>
 
 		
