@@ -133,6 +133,31 @@ class MikhmonBilling
         );
     }
 
+    /**
+     * Synchronize comment with package (pkg:) and status lunas/tenggat.
+     * When adding a new user, if lunas is missing, sets current month.
+     * When editing package, updates pkg: to match the selected profile
+     * (unless the profile is the isolir profile).
+     */
+    public static function syncComment($currentComment, $selectedProfile, $isNewUser = false)
+    {
+        $parsed = self::parseComment($currentComment);
+        $label = ($parsed['label'] !== '') ? $parsed['label'] : trim((string)$currentComment);
+        $isIsolated = self::isIsolirProfile($selectedProfile);
+
+        if ($isNewUser) {
+            $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;
+            $lunas = $parsed['lunas'] ?: self::currentMonth();
+            $tgl = $parsed['tgl'];
+        } else {
+            $pkg = $isIsolated ? ($parsed['pkg'] ?: $selectedProfile) : $selectedProfile;
+            $lunas = $parsed['lunas'];
+            $tgl = $parsed['tgl'];
+        }
+
+        return self::buildComment($currentComment, $pkg, $lunas, $tgl, $label);
+    }
+
     public static function buildComment($currentComment, $pkg = null, $lunas = null, $tgl = null, $newLabel = null)
     {
         $parsed = self::parseComment($currentComment);

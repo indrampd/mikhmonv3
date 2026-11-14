@@ -4,6 +4,7 @@
  */
 session_start();
 error_reporting(0);
+require_once dirname(__DIR__) . '/lib/billing.class.php';
 
 if (!isset($_SESSION["mikhmon"])) {
     header("Location:./admin.php?id=login");
@@ -27,6 +28,7 @@ if (isset($_POST['save'])) {
     $local_addr = trim($_POST['local_address']);
     $remote_addr = trim($_POST['remote_address']);
     $comment = trim($_POST['comment']);
+    $comment = MikhmonBilling::syncComment($comment, $profile_name, true);
     $disabled = ($_POST['disabled'] === 'yes') ? 'yes' : 'no';
 
     if (!empty($name) && !empty($password)) {
@@ -88,7 +90,7 @@ if (isset($_POST['save'])) {
             <tr>
               <td>Profile</td>
               <td>
-                <select class="form-control" name="profile">
+                <select class="form-control" name="profile" id="ppp_profile" onchange="updateCommentPreview()">
                   <?php foreach ($getprofile as $p): ?>
                     <option value="<?= htmlspecialchars($p['name']); ?>"><?= htmlspecialchars($p['name']); ?></option>
                   <?php endforeach; ?>
@@ -105,7 +107,10 @@ if (isset($_POST['save'])) {
             </tr>
             <tr>
               <td>Comment</td>
-              <td><input type="text" class="form-control" name="comment" placeholder="Keterangan / Alamat Pelanggan"></td>
+              <td>
+                <input type="text" class="form-control" name="comment" id="ppp_comment" placeholder="Keterangan / Alamat Pelanggan (misal: Ummi)">
+                <small class="text-muted"><i class="fa fa-info-circle"></i> Cukup isi nama/alamat (contoh: <code>Ummi</code>), format <code>pkg:</code> dan <code>lunas:YYYY-MM</code> otomatis dibuatkan.</small>
+              </td>
             </tr>
             <tr>
               <td>Status Disabled</td>
@@ -129,3 +134,18 @@ if (isset($_POST['save'])) {
     </div>
   </div>
 </div>
+
+<script>
+function updateCommentPreview() {
+    var profSel = document.getElementById('ppp_profile');
+    var commInput = document.getElementById('ppp_comment');
+    if (!profSel || !commInput) return;
+    var newProf = profSel.value;
+    if (newProf.toLowerCase().indexOf('isolir') !== -1) return;
+    
+    var val = commInput.value;
+    if (/pkg:[^|]+/.test(val)) {
+        commInput.value = val.replace(/pkg:[^|]+/, 'pkg:' + newProf);
+    }
+}
+</script>
