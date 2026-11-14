@@ -12,3 +12,17 @@
 /* Banners: the theme's padding helpers assume border-box. */
 .alert{box-sizing:border-box;max-width:100%;overflow-wrap:anywhere}
 .alert pre{max-width:100%;white-space:pre-wrap;word-break:break-word}
+/* A scroll wrapper around an already-bordered table must not draw its own
+   outline, or the two edges collide and look like a thick double border. */
+.overflow.box-bordered:has(> .table-bordered),
+.overflow.box-bordered:has(> table.table-bordered){
+  border:0;
+  border-radius:4px;
+}
+/* keep the rounded corner on the table itself so the clip matches */
+.overflow.box-bordered > .table-bordered:first-child,
+.overflow.box-bordered > table.table-bordered:first-child{
+  border-radius:4px;
+}
+/* the outline is supplied by the outer table border only */
+.table-bordered{border:1px solid currentColor;border-color:inherit}
