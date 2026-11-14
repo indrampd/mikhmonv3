@@ -142,10 +142,9 @@ $TotalReg = count($filtered_users);
     <tr>
       <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Username</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profile</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Remote IP</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Pelanggan</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profile ROS</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Paket Asli</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
       <th class="pointer text-center" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
       <th class="text-center" style="width:165px;">Aksi Cepat</th>
     </tr>
@@ -153,7 +152,7 @@ $TotalReg = count($filtered_users);
     <tbody id="tbody">
     <?php
     if ($TotalReg === 0) {
-        echo "<tr><td colspan='8' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
+        echo "<tr><td colspan='7' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
     }
 
     for ($i = 0; $i < $TotalReg; $i++) {
@@ -175,60 +174,53 @@ $TotalReg = count($filtered_users);
 
         echo "<tr id='row-user-" . htmlspecialchars($uname) . "' data-user='" . htmlspecialchars($uname) . "'>";
         
-        // Col 1: Action (Lock / Delete)
+        // Col 1: Action (Lock / Delete) - Same style as Hotspot Users
         echo "<td style='text-align:center;'>";
-        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}else{}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;";
+        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
         if ($udisabled) {
             $uriprocess = "'./?enable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
-            echo '<span class="text-warning pointer" title="Aktifkan Akun" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-lock"></i></span>';
+            echo '<span class="text-warning pointer" title="Enable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-lock"></i></span></td>';
         } else {
             $uriprocess = "'./?disable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
-            echo '<span class="pointer text-green" title="Nonaktifkan Akun" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-unlock"></i></span>';
+            echo '<span class="pointer" title="Disable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-unlock"></i></span></td>';
         }
-        echo "</td>";
 
-        // Status dot color for connection: green if online, grey if offline (like User Profile list)
+        // Status dot color for connection: green if online, muted if offline
         $dot_color = $is_online ? "text-green" : "text-muted";
         $dot_title = $is_online ? "Online" : "Offline";
 
-        // Col 2: Username with Status Dot & Edit Icon
+        // Col 2: Username (Hotspot Style: <i class='fa fa-edit'></i> <i class='fa fa-circle ...'></i> Username)
         echo "<td>";
-        echo "<a title='Edit User " . htmlspecialchars($uname) . " (" . $dot_title . ")' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13px; font-weight:600;'>";
-        echo "<i class='fa fa-edit text-muted'></i> <i class='fa fa-circle " . $dot_color . "' title='" . $dot_title . "' style='font-size:10px;'></i> " . htmlspecialchars($uname);
+        echo "<a title='Open User " . htmlspecialchars($uname) . " (" . $dot_title . ")' href='./?secret=" . urlencode($uname) . "&session=" . $session . "'>";
+        echo "<i class='fa fa-edit'></i> <i class='fa fa-circle " . $dot_color . "' title='" . $dot_title . "'></i> " . htmlspecialchars($uname);
         echo "</a>";
         echo "</td>";
 
-        // Col 3: Remote IP / Service
+        // Col 3: Profile (with origin package note if currently isolated)
         echo "<td>";
-        if (!empty($uremote) && $uremote !== '-') {
-            echo "<span style='font-size:12px;'><i class='fa fa-desktop text-muted'></i> " . htmlspecialchars($uremote) . "</span>";
-        } else {
-            echo "<span class='text-muted' style='font-size:11.5px;'><i class='fa fa-server'></i> " . htmlspecialchars($uservice) . "</span>";
-        }
-        echo "</td>";
-
-        // Col 4: Pelanggan (Nama Asli / Label)
-        echo "<td>";
-        if (!empty($parsed['label'])) {
-            echo "<strong style='font-size:13px;'><i class='fa fa-id-card text-muted'></i> " . htmlspecialchars($parsed['label']) . "</strong>";
-        } else {
-            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 5: Profile ROS
-        echo "<td>";
-        echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "' style='font-weight:500; font-size:12.5px;'>";
+        echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "'>";
         echo htmlspecialchars($uprofile);
         echo "</a>";
+        if ($is_isolir && !empty($parsed['pkg']) && $parsed['pkg'] !== $uprofile) {
+            echo " <small class='text-muted' title='Paket Asli'>(" . htmlspecialchars($parsed['pkg']) . ")</small>";
+        }
         echo "</td>";
 
-        // Col 6: Paket Asli (pkg)
+        // Col 4: Remote IP / Service
         echo "<td>";
-        if (!empty($parsed['pkg'])) {
-            echo "<span class='badge bg-secondary radius-3' style='font-size:11px;'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
+        if (!empty($uremote) && $uremote !== '-') {
+            echo htmlspecialchars($uremote);
         } else {
-            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
+            echo "<span class='text-muted'>&mdash;</span>";
+        }
+        echo "</td>";
+
+        // Col 5: Comment / Pelanggan (Same as Hotspot Comment)
+        echo "<td>";
+        if (!empty($parsed['label'])) {
+            echo htmlspecialchars($parsed['label']);
+        } else {
+            echo "<span class='text-muted'>&mdash;</span>";
         }
         echo "</td>";
 
