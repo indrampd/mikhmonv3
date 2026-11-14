@@ -125,7 +125,7 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
     </h3>
 </div>
 
-<div class="card-body">
+<div class="card-body" style="overflow:visible;">
   <?php if (!empty($msg_alert)): ?>
     <div class="alert bg-<?= $alert_type; ?> pd-10 radius-3 mr-b-10">
       <pre style="margin:0; background:transparent; border:none; color:inherit; font-size:12px; white-space:pre-wrap;"><?= htmlspecialchars($msg_alert); ?></pre>
@@ -186,8 +186,8 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
               </div>
 
               <div class="col-6 pd-b-5">
-                <label class="label-block">Tgl Batas Bayar</label>
-                <input class="form-control" type="number" min="1" max="28" name="cutoff_day" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
+                <label class="label-block" for="_cutoff_day">Tgl Batas Bayar</label>
+                <input class="form-control" id="_cutoff_day" type="number" min="1" max="28" name="cutoff_day" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
               </div>
 
               <div class="col-12 pd-b-5">
@@ -212,14 +212,16 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
               </div>
             </div>
 
-            <button type="submit" class="btn btn-primary pd-5 radius-3 mr-t-10"><i class="fa fa-save"></i> Simpan Pengaturan</button>
+            <div class="pd-t-10">
+              <button type="submit" class="btn bg-primary radius-3 pd-5"><i class="fa fa-save"></i> Simpan Pengaturan</button>
+            </div>
           </form>
         </div>
       </div>
     </div>
 
     <!-- KANAN: Webhook + Perintah -->
-    <div class="col-6 col-box-6">
+    <div class="col-6 col-box-6" style="display:flex; flex-direction:column;">
       <div class="card">
         <div class="card-header">
           <h3><i class="fa fa-link"></i> Webhook</h3>
@@ -231,14 +233,14 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
         </div>
         <div class="card-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
-            <div class="col-6 pd-b-5">
-              <label class="label-block">URL Webhook</label>
-              <input class="form-control" type="text" name="webhook_url" value="<?= htmlspecialchars($suggested_webhook); ?>">
+            <div class="pd-b-5">
+              <label class="label-block" for="_webhook_url">URL Webhook</label>
+              <input class="form-control" id="_webhook_url" type="text" name="webhook_url" value="<?= htmlspecialchars($suggested_webhook); ?>">
               <small class="hint-text">Harus domain publik ber-HTTPS. Domain lokal (AdGuard rewrite) tidak bisa dijangkau server Telegram.</small>
             </div>
 
             <?php if (!empty($active_webhook_url)): ?>
-              <div style="margin-top:10px; font-size:12px; opacity:0.75;">
+              <div class="hint-text" style="margin-top:8px;">
                 <i class="fa fa-clock-o"></i> Pending update: <strong><?= (int)$webhook_pending; ?></strong>
               </div>
             <?php endif; ?>
@@ -252,7 +254,7 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
         </div>
       </div>
 
-      <div class="card">
+      <div class="card" style="margin-top:12px; flex:1 1 auto;">
         <div class="card-header">
           <h3><i class="fa fa-terminal"></i> Perintah Bot</h3>
         </div>
@@ -271,37 +273,43 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
     </div>
   </div>
 
+  <div style="clear:both;"></div>
+
   <!-- Riwayat Aksi -->
-  <div class="card">
+  <div class="card" style="margin-top:12px;">
     <div class="card-header">
       <h3><i class="fa fa-history"></i> Riwayat Aksi Tagihan</h3>
       <span style="font-size:12px; opacity:0.65;"><?= count($events); ?> entri terakhir</span>
     </div>
     <div class="card-body" style="padding:0;">
       <div class="overflow" style="max-height: 42vh;">
-        <table class="table table-bordered table-hover text-nowrap" style="margin:0;">
+        <table id="histTable" class="table table-bordered table-hover" style="margin:0; width:100%;">
+          <style>
+            #histTable th { padding: 9px 10px; text-align: left; }
+            #histTable td { padding: 8px 10px; vertical-align: middle; }
+          </style>
           <thead>
             <tr>
-              <th style="width:150px;">Waktu</th>
+              <th style="width:170px;">Waktu</th>
               <th style="width:150px;">Aktor</th>
-              <th style="width:100px;">Aksi</th>
-              <th>Pelanggan</th>
+              <th style="width:88px;" class="text-center">Aksi</th>
+              <th style="min-width:220px;">Pelanggan</th>
               <th>Detail</th>
             </tr>
           </thead>
           <tbody>
             <?php
             if (empty($events)) {
-                echo "<tr><td colspan='5' class='text-center text-muted pd-15'>Belum ada riwayat aktivitas.</td></tr>";
+                echo "<tr><td colspan='5' class='text-center text-grey pd-10'>Belum ada riwayat aktivitas.</td></tr>";
             } else {
                 foreach ($events as $ev) {
                     $badge = ($ev['action'] === 'lunas') ? 'success' : (($ev['action'] === 'isolir') ? 'danger' : 'info');
                     echo "<tr>";
-                    echo "<td><small style='opacity:0.75;'>" . htmlspecialchars($ev['ts']) . "</small></td>";
+                    echo "<td><small class='text-grey'>" . htmlspecialchars($ev['ts']) . "</small></td>";
                     echo "<td><small>" . htmlspecialchars($ev['tg_id']) . "</small></td>";
-                    echo "<td><span class='badge bg-{$badge} pd-2 radius-2' style='font-size:11px;'>" . strtoupper(htmlspecialchars($ev['action'])) . "</span></td>";
+                    echo "<td class='text-center'><span class='badge bg-{$badge} pd-2 radius-3' style='font-size:11px;'>" . strtoupper(htmlspecialchars($ev['action'])) . "</span></td>";
                     echo "<td><strong>" . htmlspecialchars($ev['target']) . "</strong></td>";
-                    echo "<td><small style='opacity:0.8;'>" . htmlspecialchars($ev['detail']) . "</small></td>";
+                    echo "<td><small class='text-grey'>" . htmlspecialchars($ev['detail']) . "</small></td>";
                     echo "</tr>";
                 }
             }
