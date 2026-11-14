@@ -64,7 +64,6 @@ if (is_array($getuser)) {
 $TotalReg = count($filtered_users);
 ?>
 
-<link rel="stylesheet" href="./css/ppp-billing.css?v=5">
 
 <div class="row">
 <div class="col-12">
@@ -83,26 +82,26 @@ $TotalReg = count($filtered_users);
 
 <div class="card-body">
   <!-- Top KPI & Quick Filter Bar -->
-  <div class="kpi-bar">
-    <a class="kpi-pill <?= $filter_tagihan === 'all' ? 'bg-primary' : ''; ?>" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=all&session=<?= $session; ?>">
+  <div class="pd-t-5 pd-b-5">
+    <a class="btn <?= $filter_tagihan === 'all' ? 'bg-primary' : 'bg-secondary'; ?> radius-3" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=all&session=<?= $session; ?>">
       <i class="fa fa-users"></i> Total: <strong><?= $TotalRegAll; ?></strong>
     </a>
-    <a class="kpi-pill <?= $filter_tagihan === 'lunas' ? 'bg-success' : ''; ?>" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=lunas&session=<?= $session; ?>">
+    <a class="btn <?= $filter_tagihan === 'lunas' ? 'bg-success' : 'bg-secondary'; ?> radius-3" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=lunas&session=<?= $session; ?>">
       <i class="fa fa-check-circle text-green"></i> Lunas: <strong><?= $counts_billing['lunas']; ?></strong>
     </a>
-    <a class="kpi-pill <?= $filter_tagihan === 'tenggang' ? 'bg-warning' : ''; ?>" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=tenggang&session=<?= $session; ?>">
+    <a class="btn <?= $filter_tagihan === 'tenggang' ? 'bg-warning' : 'bg-secondary'; ?> radius-3" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=tenggang&session=<?= $session; ?>">
       <i class="fa fa-clock-o text-yellow"></i> Tenggang: <strong><?= $counts_billing['tenggang']; ?></strong>
     </a>
-    <a class="kpi-pill <?= $filter_tagihan === 'isolir' ? 'bg-danger' : ''; ?>" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=isolir&session=<?= $session; ?>">
+    <a class="btn <?= $filter_tagihan === 'isolir' ? 'bg-danger' : 'bg-secondary'; ?> radius-3" href="./?ppp=secrets&profile=<?= urlencode($prof); ?>&tagihan=isolir&session=<?= $session; ?>">
       <i class="fa fa-ban text-red"></i> Isolir: <strong><?= $counts_billing['isolir']; ?></strong>
     </a>
-    <span class="kpi-pill is-static">
-      <span class="status-dot bg-success"></span> Online: <strong><?= $TotalActive; ?></strong>
+    <span class="btn bg-secondary radius-3">
+      <i class="fa fa-circle text-green"></i> Online: <strong><?= $TotalActive; ?></strong>
     </span>
   </div>
 
   <!-- Search & Filter Controls -->
-  <div class="row mr-b-15">
+  <div class="row mr-b-10">
     <div class="col-12">
       <div class="input-group">
         <div class="input-group-4 col-box-4">
@@ -132,13 +131,13 @@ $TotalReg = count($filtered_users);
     </div>
   </div>
 
-  <div id="liveAlertBox" style="display:none; margin-bottom:12px;" class="alert bg-info pd-10 radius-3">
+  <div id="liveAlertBox" style="display:none; margin:0 0 12px; padding:9px 12px; border:1px solid #1EA4E1; border-left:3px solid #20a8d8; border-radius:4px; background:#3a4149; color:#e4e7ea; box-sizing:border-box; max-width:100%; overflow-wrap:anywhere;">
     <i class="fa fa-bolt"></i> <span id="liveAlertText">Live event</span>
   </div>
 
   <!-- Breathable Table Structure -->
   <div class="overflow box-bordered" style="max-height: 72vh; border-radius: 4px;">
-  <table id="dataTable" class="table table-bordered table-hover text-nowrap secret-table">
+  <table id="dataTable" class="table table-bordered table-hover text-nowrap">
     <thead>
     <tr>
       <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
@@ -192,7 +191,7 @@ $TotalReg = count($filtered_users);
         echo "<a title='Edit User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13.5px; font-weight:600;'>";
         echo "<i class='fa fa-user'></i> " . htmlspecialchars($uname) . "</a>";
         
-        echo "<span class='user-subinfo'>";
+        echo "<span class='text-grey' style='display:block; font-size:11px;'>";
         if ($upass !== '') {
             echo "<code style='font-size:10.5px; padding:1px 4px;'>" . htmlspecialchars($upass) . "</code>";
             echo " &nbsp;•&nbsp; ";
@@ -220,7 +219,7 @@ $TotalReg = count($filtered_users);
         echo htmlspecialchars($uprofile);
         echo "</a>";
         if (!empty($parsed['pkg'])) {
-            echo "<span class='user-subinfo'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
+            echo "<span class='text-grey' style='display:block; font-size:11px;'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
         }
         echo "</td>";
 
@@ -247,15 +246,15 @@ $TotalReg = count($filtered_users);
         echo "<td class='text-center'>";
         echo "<div style='display:inline-flex; gap:4px; align-items:center;'>";
         // Button Lunas
-        echo "<button type='button' class='btn-action-sm bg-success pointer' title='Tandai Lunas Bulan Ini' onclick=\"quickBillingAction('lunas', '" . addslashes($uname) . "')\"><i class='fa fa-check'></i> Lunas</button>";
+        echo "<button type='button' class='btn bg-success radius-3 pd-2 pointer' title='Tandai Lunas Bulan Ini' onclick=\"quickBillingAction('lunas', '" . addslashes($uname) . "')\"><i class='fa fa-check'></i> Lunas</button>";
         // Button Isolir / Pulih
         if ($is_isolir) {
-            echo "<button type='button' class='btn-action-sm bg-warning pointer' title='Pulihkan Paket Asal' onclick=\"quickBillingAction('pulih', '" . addslashes($uname) . "')\"><i class='fa fa-refresh'></i> Pulih</button>";
+            echo "<button type='button' class='btn bg-warning radius-3 pd-2 pointer' title='Pulihkan Paket Asal' onclick=\"quickBillingAction('pulih', '" . addslashes($uname) . "')\"><i class='fa fa-refresh'></i> Pulih</button>";
         } else {
-            echo "<button type='button' class='btn-action-sm bg-danger pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', '" . addslashes($uname) . "')\"><i class='fa fa-ban'></i> Isolir</button>";
+            echo "<button type='button' class='btn bg-danger radius-3 pd-2 pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', '" . addslashes($uname) . "')\"><i class='fa fa-ban'></i> Isolir</button>";
         }
         // Button Edit
-        echo "<a href='./?secret=" . urlencode($uname) . "&session=" . $session . "' class='btn-action-sm box-bordered text-muted pointer' title='Edit Secret'><i class='fa fa-pencil'></i></a>";
+        echo "<a href='./?secret=" . urlencode($uname) . "&session=" . $session . "' class='btn box-bordered text-grey radius-3 pd-2 pointer' title='Edit Secret'><i class='fa fa-pencil'></i></a>";
         echo "</div>";
         echo "</td>";
 
