@@ -57,6 +57,7 @@ if (isset($_POST['save_bot_config']) || ($_POST['action_type'] ?? '') === 'save_
         $msg_alert = "URL Webhook tidak boleh kosong.";
         $alert_type = "danger";
     } else {
+        @$bot->deleteWebhook();
         $res = $bot->setWebhook($webhook_url, $secret);
         if ($res['ok']) {
             $msg_alert = "Webhook Telegram berhasil dipasang ke: " . htmlspecialchars($webhook_url);
@@ -97,10 +98,10 @@ $total_cust = count($secrets);
 // Recent Events from SQLite
 $events = MikhmonBilling::getEvents(25);
 
-// Detect current domain for webhook recommendation
-$proto = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on') ? "https" : "https"; // Default https for proxy
-$current_host = $_SERVER['HTTP_HOST'] ?? 'mikhmon.indrampd.work';
-$suggested_webhook = "{$proto}://{$current_host}/bot.php";
+// Detect current webhook or recommend public tunnel endpoint
+$webhook_info = $bot->getWebhookInfo();
+$active_webhook_url = ($webhook_info['ok'] ?? false) ? ($webhook_info['result']['url'] ?? '') : '';
+$suggested_webhook = !empty($active_webhook_url) ? $active_webhook_url : "https://billing.indrampd.work/bot.php";
 ?>
 
 <div class="row">
@@ -211,14 +212,20 @@ $suggested_webhook = "{$proto}://{$current_host}/bot.php";
     <div class="col-6 col-box-6">
       <div class="card" style="box-shadow:none; border:1px solid #ddd;">
         <div class="card-header">
-          <h4><i class="fa fa-link"></i> Webhook Controller</h4>
+          <h4><i class="fa fa-link"></i> Webhook Controller
+            <?php if (!empty($active_webhook_url)): ?>
+              <span class="badge bg-success pd-5 radius-3" style="font-size:11px; float:right;"><i class="fa fa-check"></i> Aktif</span>
+            <?php else: ?>
+              <span class="badge bg-danger pd-5 radius-3" style="font-size:11px; float:right;"><i class="fa fa-ban"></i> Belum Terpasang</span>
+            <?php endif; ?>
+          </h4>
         </div>
         <div class="card-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
             <div class="form-group mr-b-10">
               <label>URL Webhook Telegram:</label>
               <input type="text" name="webhook_url" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($suggested_webhook); ?>">
-              <small class="text-muted">Harus HTTPS valid dan dapat diakses dari internet publik.</small>
+              <small class="text-muted">Gunakan domain dengan DNS publik (misal <code>https://billing.indrampd.work/bot.php</code>). Domain lokal/internal seperti AdGuard rewrite tidak dapat dijangkau oleh server Telegram.</small>
             </div>
 
             <div class="btn-group mr-t-10">
