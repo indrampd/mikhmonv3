@@ -420,15 +420,17 @@ class MikhmonTelegramBot
             return;
         }
 
-        $secrets = $api->comm("/ppp/secret/print", array("?name" => $user));
-        if (empty($secrets)) {
+        // The secret is usually "name@host", so a bare "deni" must be resolved
+        // before the exact-name lookup, otherwise /cek reports it as missing.
+        list($c, $resolveError) = MikhmonBilling::resolveSecret($api, $user);
+        if ($c === null) {
             $api->disconnect();
-            $this->sendMessage($chat_id, "Pelanggan <code>{$user}</code> tidak ditemukan.");
+            $this->sendMessage($chat_id, htmlspecialchars($resolveError));
             return;
         }
+        $resolved = $c['name'] ?? $user;
 
-        $c = $secrets[0];
-        $actives = $api->comm("/ppp/active/print", array("?name" => $user));
+        $actives = $api->comm("/ppp/active/print", array("?name" => $resolved));
         $api->disconnect();
 
         $is_online = !empty($actives);
@@ -439,8 +441,8 @@ class MikhmonTelegramBot
 
         $html = "👤 <b>Detail Pelanggan PPPoE</b>\n";
         $html .= "━━━━━━━━━━━━━━━━━━━\n";
-        $html .= "Nama/Label : <b>" . ($parsed['label'] ?: $user) . "</b>\n";
-        $html .= "Username   : <code>{$user}</code>\n";
+        $html .= "Nama/Label : <b>" . ($parsed['label'] ?: $resolved) . "</b>\n";
+        $html .= "Username   : <code>{$resolved}</code>\n";
         $html .= "Status     : <b>{$stat['label']}</b> ({$stat['hint']})\n";
         $html .= "Paket Asli : <code>" . ($parsed['pkg'] ?: '-') . "</code>\n";
         $html .= "Profil ROS : <code>" . ($c['profile'] ?? '-') . "</code>\n";

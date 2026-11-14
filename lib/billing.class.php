@@ -216,14 +216,98 @@ class MikhmonBilling
      * Core Router Actions
      * ========================================================== */
 
-    public static function markLunas($API, $username, $by = 'Web Mikhmon', $actor = '')
+    /**
+     * Find one PPP secret by exact name, then by unique partial match.
+     *
+     * RouterOS matches ?name exactly, so "/cek deni" fails when the secret is
+     * "deni@hotspotxxi.net". A partial match is only accepted when it resolves
+     * to a single secret, so an ambiguous query is reported instead of guessing.
+     *
+     * @return array{0: array|null, 1: string} [secret, error]
+     */
+    public static function resolveSecret($API, $query)
     {
-        $secrets = $API->comm("/ppp/secret/print", array("?name" => $username));
-        if (empty($secrets) || !isset($secrets[0])) {
-            return array('success' => false, 'message' => "User PPPoE '{$username}' tidak ditemukan.");
+        $query = trim((string)$query);
+        if ($query === '') {
+            return array(null, 'Nama pelanggan kosong.');
         }
 
-        $cust = $secrets[0];
+        $exact = $API->comm('/ppp/secret/print', array('?name' => $query));
+        if (is_array($exact) && !empty($exact[0])) {
+            return array($exact[0], '');
+        }
+
+        $all = $API->comm('/ppp/secret/print');
+        if (!is_array($all)) {
+            return array(null, 'Gagal membaca data dari RouterOS.');
+        }
+
+        $needle = strtolower($query);
+        $matches = array();
+        foreach ($all as $row) {
+            $name = strtolower($row['name'] ?? '');
+            if ($name === '') {
+                continue;
+            }
+            // Exact, prefix, or anywhere in the local part ("sawo" finds
+            // denisawo@...). Ranking is applied below so the closest wins.
+            $local = strpos($name, '@') !== false ? substr($name, 0, strpos($name, '@')) : $name;
+            if ($name === $needle || strpos($name, $needle) === 0 || strpos($local, $needle) !== false) {
+                $matches[] = array($row, $name, $local);
+            }
+        }
+
+        if (count($matches) === 1) {
+            return array($matches[0][0], '');
+        }
+        if (count($matches) > 1) {
+            // Prefer an exact local-part hit over a loose substring hit, so
+            // "deni" picks deni@... when both deni@ and denisawo@ exist.
+            $exactLocal = array();
+            foreach ($matches as $m) {
+                if ($m[2] === $needle) {
+                    $exactLocal[] = $m;
+                }
+            }
+            if (count($exactLocal) === 1) {
+                return array($exactLocal[0][0], '');
+            }
+            if (count($exactLocal) > 1) {
+                $matches = $exactLocal;
+            }
+
+            $names = array();
+            foreach (array_slice($matches, 0, 5) as $m) {
+                $names[] = $m[1];
+            }
+            return array(null, "'{$query}' cocok dengan " . count($matches) . ' pelanggan: '
+                . implode(', ', $names) . (count($matches) > 5 ? ', ...' : '')
+                . '. Tulis nama lengkapnya.');
+        }
+
+        return array(null, "Pelanggan '{$query}' tidak ditemukan.");
+    }
+
+    /**
+     * Resolve a query to a concrete secret name, or return the error text.
+     *
+     * @return array{0: string, 1: string} [name, error]
+     */
+    public static function resolveSecretName($API, $query)
+    {
+        list($row, $error) = self::resolveSecret($API, $query);
+        if ($row === null) {
+            return array('', $error);
+        }
+        return array($row['name'] ?? '', '');
+    }
+
+    public static function markLunas($API, $username, $by = 'Web Mikhmon', $actor = '')
+    {
+        list($cust, $resolveError) = self::resolveSecret($API, $username);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
+        }
         $id = $cust['.id'];
         $comment = $cust['comment'] ?? '';
         $profile = $cust['profile'] ?? '';
@@ -263,12 +347,10 @@ class MikhmonBilling
     public static function markIsolir($API, $username, $by = 'Web Mikhmon', $actor = '', $isolirProfile = null)
     {
         $isolirProfile = $isolirProfile ?: self::DEFAULT_ISOLIR;
-        $secrets = $API->comm("/ppp/secret/print", array("?name" => $username));
-        if (empty($secrets) || !isset($secrets[0])) {
-            return array('success' => false, 'message' => "User PPPoE '{$username}' tidak ditemukan.");
+        list($cust, $resolveError) = self::resolveSecret($API, $username);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
         }
-
-        $cust = $secrets[0];
         $id = $cust['.id'];
         $comment = $cust['comment'] ?? '';
         $parsed = self::parseComment($comment);
@@ -297,12 +379,10 @@ class MikhmonBilling
 
     public static function restorePaket($API, $username, $by = 'Web Mikhmon', $actor = '')
     {
-        $secrets = $API->comm("/ppp/secret/print", array("?name" => $username));
-        if (empty($secrets) || !isset($secrets[0])) {
-            return array('success' => false, 'message' => "User PPPoE '{$username}' tidak ditemukan.");
+        list($cust, $resolveError) = self::resolveSecret($API, $username);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
         }
-
-        $cust = $secrets[0];
         $id = $cust['.id'];
         $comment = $cust['comment'] ?? '';
         $parsed = self::parseComment($comment);

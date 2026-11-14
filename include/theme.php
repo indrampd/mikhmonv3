@@ -1,1 +1,1 @@
-<?php $theme="blue"; $themecolor="#008BC9";?>
+<?php $theme="dark"; $themecolor="#3a4149";?>
