@@ -101,15 +101,25 @@ $events = MikhmonBilling::getEvents(25);
 // Detect current webhook or recommend public tunnel endpoint
 $webhook_info = $bot->getWebhookInfo();
 $active_webhook_url = ($webhook_info['ok'] ?? false) ? ($webhook_info['result']['url'] ?? '') : '';
+$webhook_pending = ($webhook_info['ok'] ?? false) ? ($webhook_info['result']['pending_update_count'] ?? 0) : 0;
 $suggested_webhook = !empty($active_webhook_url) ? $active_webhook_url : "https://mikhmon.indrampd.work/bot.php";
+
+// Bot identity (best-effort, cached per request)
+$bot_username = '';
+$me = $bot->apiCall('getMe');
+if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
+    $bot_username = $me['result']['username'];
+}
 ?>
+
+<link rel="stylesheet" href="./css/ppp-billing.css">
 
 <div class="row">
 <div class="col-12">
 <div class="card">
 <div class="card-header align-middle">
-    <h3><i class="fa fa-telegram"></i> Billing & Bot Telegram
-      <span style="font-size: 14px">
+    <h3><i class="fa fa-telegram"></i> Billing &amp; Bot Telegram
+      <span style="font-size: 13px;">
         &nbsp; | &nbsp; <a href="./?ppp=secrets&session=<?= $session; ?>" title="Kembali ke Secrets"><i class="fa fa-users"></i> User Secrets</a>
         &nbsp; | &nbsp; <a href="./?ppp=active&session=<?= $session; ?>" title="Active Connections"><i class="fa fa-exchange"></i> PPP Active</a>
       </span>
@@ -123,174 +133,181 @@ $suggested_webhook = !empty($active_webhook_url) ? $active_webhook_url : "https:
     </div>
   <?php endif; ?>
 
-  <!-- Summary Cards -->
-  <div class="row">
-    <div class="col-3 col-m-6 col-box-3">
-      <div class="box bg-green text-center pd-10 radius-3 pointer" onclick="location='./?ppp=secrets&tagihan=lunas&session=<?= $session; ?>'">
-        <h4 style="margin:0;"><i class="fa fa-check-circle"></i> <?= $counts_billing['lunas']; ?></h4>
-        <small>Tagihan Lunas (Aktif)</small>
-      </div>
-    </div>
-    <div class="col-3 col-m-6 col-box-3">
-      <div class="box bg-yellow text-center pd-10 radius-3 pointer" onclick="location='./?ppp=secrets&tagihan=tenggang&session=<?= $session; ?>'">
-        <h4 style="margin:0;"><i class="fa fa-clock-o"></i> <?= $counts_billing['tenggang']; ?></h4>
-        <small>Masa Tenggang</small>
-      </div>
-    </div>
-    <div class="col-3 col-m-6 col-box-3">
-      <div class="box bg-red text-center pd-10 radius-3 pointer" onclick="location='./?ppp=secrets&tagihan=isolir&session=<?= $session; ?>'">
-        <h4 style="margin:0;"><i class="fa fa-ban"></i> <?= $counts_billing['isolir']; ?></h4>
-        <small>Terisolir</small>
-      </div>
-    </div>
-    <div class="col-3 col-m-6 col-box-3">
-      <div class="box bg-secondary text-center pd-10 radius-3 pointer" onclick="location='./?ppp=secrets&session=<?= $session; ?>'">
-        <h4 style="margin:0;"><i class="fa fa-users"></i> <?= $total_cust; ?></h4>
-        <small>Total Pelanggan PPPoE</small>
-      </div>
-    </div>
+  <!-- KPI bar (sama dengan halaman Secrets) -->
+  <div class="kpi-bar">
+    <a class="kpi-pill" href="./?ppp=secrets&session=<?= $session; ?>">
+      <i class="fa fa-users"></i> Total: <strong><?= $total_cust; ?></strong>
+    </a>
+    <a class="kpi-pill" href="./?ppp=secrets&tagihan=lunas&session=<?= $session; ?>">
+      <i class="fa fa-check-circle text-green"></i> Lunas: <strong><?= $counts_billing['lunas']; ?></strong>
+    </a>
+    <a class="kpi-pill" href="./?ppp=secrets&tagihan=tenggang&session=<?= $session; ?>">
+      <i class="fa fa-clock-o text-yellow"></i> Tenggang: <strong><?= $counts_billing['tenggang']; ?></strong>
+    </a>
+    <a class="kpi-pill" href="./?ppp=secrets&tagihan=isolir&session=<?= $session; ?>">
+      <i class="fa fa-ban text-red"></i> Isolir: <strong><?= $counts_billing['isolir']; ?></strong>
+    </a>
+    <span class="kpi-pill is-static">
+      <span class="status-dot <?= !empty($active_webhook_url) ? 'bg-success' : 'bg-danger'; ?>"></span>
+      Webhook: <strong><?= !empty($active_webhook_url) ? 'Aktif' : 'Nonaktif'; ?></strong>
+    </span>
   </div>
 
-  <div class="row mr-t-20">
-    <!-- Bot Settings Form -->
+  <div class="row">
+    <!-- KIRI: Pengaturan Bot -->
     <div class="col-6 col-box-6">
-      <div class="card" style="box-shadow:none; border:1px solid #ddd;">
-        <div class="card-header">
-          <h4><i class="fa fa-cogs"></i> Pengaturan Bot Telegram</h4>
+      <div class="ui-section">
+        <div class="ui-section-head">
+          <h4><i class="fa fa-cogs"></i> Pengaturan Bot</h4>
+          <?php if ($bot_username !== ''): ?>
+            <span class="kpi-pill is-static" style="font-size:11px;">@<?= htmlspecialchars($bot_username); ?></span>
+          <?php endif; ?>
         </div>
-        <div class="card-body">
+        <div class="ui-section-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
             <input type="hidden" name="action_type" value="save_config">
             <input type="hidden" name="save_bot_config" value="1">
-            <div class="form-group mr-b-10">
-              <label>Telegram Bot Token:</label>
-              <input type="password" name="bot_token" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($config['token'] ?? ''); ?>" placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ">
-            </div>
 
-            <div class="form-group mr-b-10">
-              <label>Webhook Secret Token:</label>
-              <input type="text" name="webhook_secret" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($config['webhook_secret'] ?? ''); ?>" placeholder="Random secret string untuk validasi request Telegram">
-            </div>
-
-            <div class="row">
-              <div class="col-6 mr-b-10">
-                <label>Profil Isolir (PPPoE):</label>
-                <input type="text" name="isolir_profile" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($config['isolir_profile'] ?? 'pppoe-ISOLIR'); ?>" placeholder="pppoe-ISOLIR">
+            <div class="ui-field-grid">
+              <div class="ui-field span-2">
+                <label>Telegram Bot Token</label>
+                <input type="password" name="bot_token" value="<?= htmlspecialchars($config['token'] ?? ''); ?>" placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ" autocomplete="off">
               </div>
-              <div class="col-6 mr-b-10">
-                <label>Tgl Batas Bayar (Default):</label>
-                <input type="number" min="1" max="28" name="cutoff_day" class="form-control" style="width:100%; padding:6px;" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
+
+              <div class="ui-field span-2">
+                <label>Webhook Secret Token</label>
+                <input type="text" name="webhook_secret" value="<?= htmlspecialchars($config['webhook_secret'] ?? ''); ?>" placeholder="Random secret string untuk validasi request Telegram" autocomplete="off">
+                <small class="ui-hint">Dipakai Telegram pada header <code>X-Telegram-Bot-Api-Secret-Token</code>.</small>
+              </div>
+
+              <div class="ui-field">
+                <label>Profil Isolir</label>
+                <input type="text" name="isolir_profile" value="<?= htmlspecialchars($config['isolir_profile'] ?? 'pppoe-ISOLIR'); ?>" placeholder="pppoe-ISOLIR">
+              </div>
+
+              <div class="ui-field">
+                <label>Tgl Batas Bayar</label>
+                <input type="number" min="1" max="28" name="cutoff_day" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
+              </div>
+
+              <div class="ui-field span-2">
+                <label>Owner IDs</label>
+                <input type="text" name="owner_ids" value="<?= htmlspecialchars(implode(', ', $config['owner_ids'] ?? array())); ?>" placeholder="562035561">
+                <small class="ui-hint">Telegram User ID yang punya akses penuh, pisahkan dengan koma.</small>
+              </div>
+
+              <div class="ui-field span-2">
+                <label>Group IDs</label>
+                <input type="text" name="group_ids" value="<?= htmlspecialchars(implode(', ', $config['group_ids'] ?? array())); ?>" placeholder="-367197368">
+                <small class="ui-hint">Chat ID grup Telegram yang boleh mengakses bot.</small>
+              </div>
+
+              <div class="ui-field span-2">
+                <label>Cakupan Izin Grup</label>
+                <select name="group_scope">
+                  <option value="tagih" <?= ($config['group_scope'] ?? '') === 'tagih' ? 'selected' : ''; ?>>Tagih &mdash; /tagihan, /cek, /lunas</option>
+                  <option value="lihat" <?= ($config['group_scope'] ?? '') === 'lihat' ? 'selected' : ''; ?>>Lihat Saja &mdash; /tagihan, /cek</option>
+                  <option value="penuh" <?= ($config['group_scope'] ?? '') === 'penuh' ? 'selected' : ''; ?>>Penuh &mdash; semua perintah termasuk /isolir</option>
+                </select>
               </div>
             </div>
 
-            <div class="form-group mr-b-10">
-              <label>Owner IDs (Telegram User ID, pisahkan koma):</label>
-              <input type="text" name="owner_ids" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars(implode(', ', $config['owner_ids'] ?? array())); ?>" placeholder="562035561">
-            </div>
-
-            <div class="form-group mr-b-10">
-              <label>Group IDs (Chat ID Grup Telegram, pisahkan koma):</label>
-              <input type="text" name="group_ids" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars(implode(', ', $config['group_ids'] ?? array())); ?>" placeholder="-367197368">
-            </div>
-
-            <div class="form-group mr-b-15">
-              <label>Cakupan Izin Grup (Group Scope):</label>
-              <select name="group_scope" class="form-control" style="width:100%; padding:6px;">
-                <option value="tagih" <?= ($config['group_scope'] ?? '') === 'tagih' ? 'selected' : ''; ?>>Tagih (Boleh /tagihan, /cek, /lunas)</option>
-                <option value="lihat" <?= ($config['group_scope'] ?? '') === 'lihat' ? 'selected' : ''; ?>>Lihat Saja (Hanya /tagihan dan /cek)</option>
-                <option value="penuh" <?= ($config['group_scope'] ?? '') === 'penuh' ? 'selected' : ''; ?>>Penuh (Semua perintah termasuk /isolir)</option>
-              </select>
-            </div>
-
-            <button type="submit" name="save_bot_config" class="btn btn-primary pd-5 radius-3"><i class="fa fa-save"></i> Simpan Pengaturan</button>
+            <button type="submit" class="btn btn-primary pd-5 radius-3 mr-t-15"><i class="fa fa-save"></i> Simpan Pengaturan</button>
           </form>
         </div>
       </div>
     </div>
 
-    <!-- Webhook Management -->
+    <!-- KANAN: Webhook + Perintah -->
     <div class="col-6 col-box-6">
-      <div class="card" style="box-shadow:none; border:1px solid #ddd;">
-        <div class="card-header">
-          <h4><i class="fa fa-link"></i> Webhook Controller
-            <?php if (!empty($active_webhook_url)): ?>
-              <span class="badge bg-success pd-5 radius-3" style="font-size:11px; float:right;"><i class="fa fa-check"></i> Aktif</span>
-            <?php else: ?>
-              <span class="badge bg-danger pd-5 radius-3" style="font-size:11px; float:right;"><i class="fa fa-ban"></i> Belum Terpasang</span>
-            <?php endif; ?>
-          </h4>
+      <div class="ui-section">
+        <div class="ui-section-head">
+          <h4><i class="fa fa-link"></i> Webhook</h4>
+          <?php if (!empty($active_webhook_url)): ?>
+            <span class="kpi-pill is-static bg-success" style="font-size:11px;"><i class="fa fa-check"></i> Aktif</span>
+          <?php else: ?>
+            <span class="kpi-pill is-static bg-danger" style="font-size:11px;"><i class="fa fa-ban"></i> Belum Terpasang</span>
+          <?php endif; ?>
         </div>
-        <div class="card-body">
+        <div class="ui-section-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
-            <div class="form-group mr-b-10">
-              <label>URL Webhook Telegram:</label>
-              <input type="text" name="webhook_url" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($suggested_webhook); ?>">
-              <small class="text-muted">Gunakan domain dengan DNS publik (misal <code>https://billing.indrampd.work/bot.php</code>). Domain lokal/internal seperti AdGuard rewrite tidak dapat dijangkau oleh server Telegram.</small>
+            <div class="ui-field">
+              <label>URL Webhook</label>
+              <input type="text" name="webhook_url" value="<?= htmlspecialchars($suggested_webhook); ?>">
+              <small class="ui-hint">Harus domain publik ber-HTTPS. Domain lokal (AdGuard rewrite) tidak bisa dijangkau server Telegram.</small>
             </div>
 
-            <div class="btn-group mr-t-10">
-              <button type="submit" name="set_webhook" class="btn btn-success pd-5 radius-3 mr-r-5"><i class="fa fa-plug"></i> Pasang Webhook</button>
-              <button type="submit" name="check_webhook" class="btn btn-info pd-5 radius-3 mr-r-5"><i class="fa fa-search"></i> Cek Status</button>
-              <button type="submit" name="delete_webhook" class="btn btn-danger pd-5 radius-3" onclick="return confirm('Yakin ingin mencabut Webhook?')"><i class="fa fa-trash"></i> Cabut Webhook</button>
+            <?php if (!empty($active_webhook_url)): ?>
+              <div style="margin-top:10px; font-size:12px; opacity:0.75;">
+                <i class="fa fa-clock-o"></i> Pending update: <strong><?= (int)$webhook_pending; ?></strong>
+              </div>
+            <?php endif; ?>
+
+            <div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:12px;">
+              <button type="submit" name="set_webhook" class="btn btn-success pd-5 radius-3"><i class="fa fa-plug"></i> Pasang</button>
+              <button type="submit" name="check_webhook" class="btn btn-info pd-5 radius-3"><i class="fa fa-search"></i> Cek Status</button>
+              <button type="submit" name="delete_webhook" class="btn btn-danger pd-5 radius-3" onclick="return confirm('Yakin ingin mencabut Webhook?')"><i class="fa fa-trash"></i> Cabut</button>
             </div>
           </form>
+        </div>
+      </div>
 
-          <hr class="mr-t-15 mr-b-15">
-
-          <h5><i class="fa fa-info-circle"></i> Petunjuk Perintah Telegram</h5>
-          <p style="font-size:12.5px; line-height:1.6;" class="text-muted">
-            Setelah webhook terpasang, kamu bisa mengoperasikan bot langsung dari akun Telegram atau grup terdaftar:<br>
-            • <code>/tagihan</code> — Melihat ringkasan dan daftar tombol inline.<br>
-            • <code>/lunas nama_user</code> — Menandai lunas & memulihkan profil.<br>
-            • <code>/isolir nama_user</code> — Mengisolir user yang menunggak.<br>
-            • <code>/cek nama_user</code> — Memeriksa koneksi & status tagihan.<br>
-            • Perubahan dari Telegram akan langsung <b>ter-update live</b> di tabel PPPoE Mikhmon tanpa refresh.
-          </p>
+      <div class="ui-section">
+        <div class="ui-section-head">
+          <h4><i class="fa fa-terminal"></i> Perintah Bot</h4>
+        </div>
+        <div class="ui-section-body">
+          <ul class="cmd-list">
+            <li><code>/tagihan</code> <span>Ringkasan tagihan &amp; tombol aksi inline</span></li>
+            <li><code>/lunas &lt;user&gt;</code> <span>Tandai lunas &amp; pulihkan profil</span></li>
+            <li><code>/isolir &lt;user&gt;</code> <span>Isolir pelanggan menunggak</span></li>
+            <li><code>/cek &lt;user&gt;</code> <span>Cek koneksi &amp; status tagihan</span></li>
+          </ul>
+          <small class="ui-hint" style="display:block; margin-top:8px;">
+            <i class="fa fa-bolt"></i> Aksi dari Telegram langsung ter-push <em>live</em> ke tabel PPPoE tanpa refresh.
+          </small>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Recent Activity Log -->
-  <div class="row mr-t-20">
-    <div class="col-12">
-      <div class="card" style="box-shadow:none; border:1px solid #ddd;">
-        <div class="card-header">
-          <h4><i class="fa fa-history"></i> Riwayat Aksi Tagihan Terakhir</h4>
-        </div>
-        <div class="card-body">
-          <div class="overflow box-bordered" style="max-height: 40vh;">
-            <table class="table table-bordered table-hover text-nowrap">
-              <thead>
-                <tr>
-                  <th style="width:150px;">Waktu</th>
-                  <th>Aktor / Telegram ID</th>
-                  <th>Aksi</th>
-                  <th>Pelanggan</th>
-                  <th>Detail</th>
-                </tr>
-              </thead>
-              <tbody>
-                <?php
-                if (empty($events)) {
-                    echo "<tr><td colspan='5' class='text-center text-muted'>Belum ada riwayat aktivitas.</td></tr>";
-                } else {
-                    foreach ($events as $ev) {
-                        $badge = ($ev['action'] === 'lunas') ? 'success' : (($ev['action'] === 'isolir') ? 'danger' : 'info');
-                        echo "<tr>";
-                        echo "<td><code>" . htmlspecialchars($ev['ts']) . "</code></td>";
-                        echo "<td>" . htmlspecialchars($ev['tg_id']) . "</td>";
-                        echo "<td><span class='badge bg-{$badge} pd-2 radius-2'>" . strtoupper(htmlspecialchars($ev['action'])) . "</span></td>";
-                        echo "<td><strong>" . htmlspecialchars($ev['target']) . "</strong></td>";
-                        echo "<td>" . htmlspecialchars($ev['detail']) . "</td>";
-                        echo "</tr>";
-                    }
+  <!-- Riwayat Aksi -->
+  <div class="ui-section">
+    <div class="ui-section-head">
+      <h4><i class="fa fa-history"></i> Riwayat Aksi Tagihan</h4>
+      <span style="font-size:12px; opacity:0.65;"><?= count($events); ?> entri terakhir</span>
+    </div>
+    <div class="ui-section-body" style="padding:0;">
+      <div class="overflow" style="max-height: 42vh;">
+        <table class="table table-bordered table-hover text-nowrap secret-table" style="margin:0;">
+          <thead>
+            <tr>
+              <th style="width:150px;">Waktu</th>
+              <th style="width:150px;">Aktor</th>
+              <th style="width:100px;">Aksi</th>
+              <th>Pelanggan</th>
+              <th>Detail</th>
+            </tr>
+          </thead>
+          <tbody>
+            <?php
+            if (empty($events)) {
+                echo "<tr><td colspan='5' class='text-center text-muted pd-15'>Belum ada riwayat aktivitas.</td></tr>";
+            } else {
+                foreach ($events as $ev) {
+                    $badge = ($ev['action'] === 'lunas') ? 'success' : (($ev['action'] === 'isolir') ? 'danger' : 'info');
+                    echo "<tr>";
+                    echo "<td><small style='opacity:0.75;'>" . htmlspecialchars($ev['ts']) . "</small></td>";
+                    echo "<td><small>" . htmlspecialchars($ev['tg_id']) . "</small></td>";
+                    echo "<td><span class='badge bg-{$badge} pd-2 radius-2' style='font-size:11px;'>" . strtoupper(htmlspecialchars($ev['action'])) . "</span></td>";
+                    echo "<td><strong>" . htmlspecialchars($ev['target']) . "</strong></td>";
+                    echo "<td><small style='opacity:0.8;'>" . htmlspecialchars($ev['detail']) . "</small></td>";
+                    echo "</tr>";
                 }
-                ?>
-              </tbody>
-            </table>
-          </div>
-        </div>
+            }
+            ?>
+          </tbody>
+        </table>
       </div>
     </div>
   </div>

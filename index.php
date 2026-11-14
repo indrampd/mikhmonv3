@@ -66,10 +66,20 @@ if (!isset($_SESSION["mikhmon"])) {
   include_once('./lib/formatbytesbites.php');
   $API = new RouterosAPI();
   $API->debug = false;
+  // A dead/slow router used to hold a worker for 5x3s + REST fallback per page
+  // view, starving the whole FPM pool. Fail in ~2s instead: the page renders and
+  // the next click retries.
+  $API->timeout = 2;
+  $API->attempts = 1;
+  $API->delay = 0;
   $API->connect($iphost, $userhost, decrypt($passwdhost));
 
-  $getidentity = $API->comm("/system/identity/print");
-  $identity = $getidentity[0]['name'];
+  $getidentity = $API->connected ? $API->comm("/system/identity/print") : array();
+  $identity = $getidentity[0]['name'] ?? '';
+
+// Router session data is loaded; drop the session lock so a slow page render
+// (router calls below) cannot serialise every other tab of the same login.
+  session_write_close();
   
 
 // get variable

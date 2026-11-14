@@ -121,6 +121,12 @@ if ($id == "login" || substr($url, -1) == "p") {
   include_once('./include/menu.php');
   $API = new RouterosAPI();
   $API->debug = false;
+  // max_execution_time above does not apply to blocking socket calls, so the
+  // retry matrix (5 attempts x 3s + REST fallback) used to hold this worker
+  // ~30s and stall every other tab sharing the pool.
+  $API->timeout = 2;
+  $API->attempts = 1;
+  $API->delay = 0;
   if ($API->connect($iphost, $userhost, decrypt($passwdhost))){
     $_SESSION["connect"] = "<b class='text-green'>Connected</b>";
     echo "<script>window.location='./?session=" . $session . "'</script>";

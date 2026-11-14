@@ -163,14 +163,18 @@ class RouterosAPI
         if ($this->connected) {
             $this->debug('Connected...');
         } else {
-            // Auto fallback to REST API if socket connection failed
-            if ($this->use_rest === null) {
+            // Auto fallback to REST API if socket connection failed.
+            // Only worth it when the caller explicitly asked for REST; an
+            // unreachable router does not get faster by being asked twice.
+            if ($this->use_rest === true) {
                 $this->debug('Socket API failed, trying RouterOS v7 REST API fallback...');
                 $this->rest_client = new RouterosRestAPI();
                 $this->rest_client->debug = $this->debug;
                 $this->rest_client->timeout = $this->timeout;
-                $this->rest_client->attempts = 2;
-                $this->rest_client->delay = 1;
+                // Socket mode already proved the router unreachable; one REST
+                // probe is enough. Retrying here was doubling every page stall.
+                $this->rest_client->attempts = 1;
+                $this->rest_client->delay = 0;
                 if ($this->rest_client->connect($ip, $login, $password)) {
                     $this->connected = true;
                     return true;
@@ -326,7 +330,14 @@ class RouterosAPI
         while (true) {
             // Read the first byte of input which gives us some or all of the length
             // of the remaining reply.
-            $BYTE   = ord(fread($this->socket, 1));
+            $RAWBYTE = fread($this->socket, 1);
+            // Empty read == peer closed/timed out. Without this the loop spins
+            // forever and pins an FPM worker (the classic "mikhmon hang").
+            if ($RAWBYTE === false || $RAWBYTE === '') {
+                $this->connected = false;
+                break;
+            }
+            $BYTE   = ord($RAWBYTE);
             $LENGTH = 0;
             // If the first bit is set then we need to remove the first four bits, shift left 8
             // and then read another byte in.
@@ -365,7 +376,12 @@ class RouterosAPI
                 $retlen = 0;
                 while ($retlen < $LENGTH) {
                     $toread = $LENGTH - $retlen;
-                    $_ .= fread($this->socket, $toread);
+                    $chunk  = fread($this->socket, $toread);
+                    if ($chunk === false || $chunk === '') {
+                        $this->connected = false;
+                        break 2;
+                    }
+                    $_ .= $chunk;
                     $retlen = strlen($_);
                 }
                 $RESPONSE[] = $_;
@@ -408,6 +424,9 @@ class RouterosAPI
      */
     public function write($command, $param2 = true)
     {
+        if (!is_resource($this->socket)) {
+            return false;
+        }
         if ($command) {
             $data = explode("\n", $command);
             foreach ($data as $com) {
@@ -442,6 +461,12 @@ class RouterosAPI
     {
         if ($this->rest_client !== null && $this->connected) {
             return $this->rest_client->comm($com, $arr);
+        }
+        // connect() failed: there is no socket, so every caller used to fatal
+        // with "fwrite(): Argument #1 must be of type resource". An empty array
+        // lets pages render their offline/empty state instead of dying.
+        if (!is_resource($this->socket)) {
+            return array();
         }
 
         $count = count($arr);
