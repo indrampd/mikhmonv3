@@ -141,18 +141,21 @@ $TotalReg = count($filtered_users);
     <thead>
     <tr>
       <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
-      <th class="pointer" title="Click to sort" style="min-width:190px;"><i class="fa fa-sort"></i> Akun</th>
-      <th class="pointer" title="Click to sort" style="min-width:150px;"><i class="fa fa-sort"></i> Pelanggan</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Paket / Profile</th>
-      <th class="pointer text-center" title="Click to sort" style="width:105px;"><i class="fa fa-sort"></i> Koneksi</th>
-      <th class="pointer text-center" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Username</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Password</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Remote IP</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Pelanggan</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profile ROS</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Paket Asli</th>
+      <th class="pointer text-center" title="Click to sort" style="width:95px;"><i class="fa fa-sort"></i> Koneksi</th>
+      <th class="pointer text-center" title="Click to sort" style="width:115px;"><i class="fa fa-sort"></i> Tagihan</th>
       <th class="text-center" style="width:165px;">Aksi Cepat</th>
     </tr>
     </thead>
     <tbody id="tbody">
     <?php
     if ($TotalReg === 0) {
-        echo "<tr><td colspan='7' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
+        echo "<tr><td colspan='10' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
     }
 
     for ($i = 0; $i < $TotalReg; $i++) {
@@ -186,40 +189,52 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 2: Akun (Username, Password, Remote IP)
+        // Col 2: Username
         echo "<td>";
-        echo "<a title='Edit User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13.5px; font-weight:600;'>";
+        echo "<a title='Edit User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13px; font-weight:600;'>";
         echo "<i class='fa fa-user'></i> " . htmlspecialchars($uname) . "</a>";
-        
-        echo "<span class='hint-text'>";
-        if ($upass !== '') {
-            echo "<code style='font-size:10.5px; padding:1px 4px;'>" . htmlspecialchars($upass) . "</code>";
-            echo " &nbsp;•&nbsp; ";
-        }
-        if (!empty($uremote) && $uremote !== '-') {
-            echo "<i class='fa fa-desktop'></i> " . htmlspecialchars($uremote);
-        } else {
-            echo "<i class='fa fa-server'></i> " . htmlspecialchars($uservice);
-        }
-        echo "</span>";
         echo "</td>";
 
-        // Col 3: Pelanggan (Label / Comment)
+        // Col 3: Password
+        echo "<td>";
+        if ($upass !== '') {
+            echo "<code style='font-size:11px; padding:2px 5px;'>" . htmlspecialchars($upass) . "</code>";
+        } else {
+            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
+        }
+        echo "</td>";
+
+        // Col 4: Remote IP / Service
+        echo "<td>";
+        if (!empty($uremote) && $uremote !== '-') {
+            echo "<span style='font-size:12px;'><i class='fa fa-desktop text-muted'></i> " . htmlspecialchars($uremote) . "</span>";
+        } else {
+            echo "<span class='text-muted' style='font-size:11.5px;'><i class='fa fa-server'></i> " . htmlspecialchars($uservice) . "</span>";
+        }
+        echo "</td>";
+
+        // Col 5: Pelanggan (Nama Asli / Label)
         echo "<td>";
         if (!empty($parsed['label'])) {
-            echo "<span style='font-size:13px;'><i class='fa fa-id-card text-muted'></i> " . htmlspecialchars($parsed['label']) . "</span>";
+            echo "<strong style='font-size:13px;'><i class='fa fa-id-card text-muted'></i> " . htmlspecialchars($parsed['label']) . "</strong>";
         } else {
-            echo "<span class='text-muted' style='font-size:12px; opacity:0.55;'>&mdash;</span>";
+            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
         }
         echo "</td>";
 
-        // Col 3: Paket / Profile & Tarif
+        // Col 6: Profile ROS
         echo "<td>";
-        echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "' style='font-weight:500;'>";
+        echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "' style='font-weight:500; font-size:12.5px;'>";
         echo htmlspecialchars($uprofile);
         echo "</a>";
+        echo "</td>";
+
+        // Col 7: Paket Asli (pkg)
+        echo "<td>";
         if (!empty($parsed['pkg'])) {
-            echo "<span class='hint-text'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
+            echo "<span class='badge bg-secondary radius-3' style='font-size:11px;'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
+        } else {
+            echo "<span class='text-muted' style='font-size:12px;'>&mdash;</span>";
         }
         echo "</td>";
 
