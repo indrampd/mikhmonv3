@@ -191,7 +191,7 @@ $TotalReg = count($filtered_users);
         echo "<a title='Edit User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "' style='font-size:13.5px; font-weight:600;'>";
         echo "<i class='fa fa-user'></i> " . htmlspecialchars($uname) . "</a>";
         
-        echo "<span class='text-grey' style='display:block; font-size:11px;'>";
+        echo "<span class='hint-text'>";
         if ($upass !== '') {
             echo "<code style='font-size:10.5px; padding:1px 4px;'>" . htmlspecialchars($upass) . "</code>";
             echo " &nbsp;•&nbsp; ";
@@ -219,7 +219,7 @@ $TotalReg = count($filtered_users);
         echo htmlspecialchars($uprofile);
         echo "</a>";
         if (!empty($parsed['pkg'])) {
-            echo "<span class='text-grey' style='display:block; font-size:11px;'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
+            echo "<span class='hint-text'><i class='fa fa-cube'></i> " . htmlspecialchars($parsed['pkg']) . "</span>";
         }
         echo "</td>";
 

@@ -170,40 +170,40 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
 
             <div class="row">
               <div class="col-12 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Telegram Bot Token</label>
+                <label class="label-block">Telegram Bot Token</label>
                 <input class="form-control" type="password" name="bot_token" value="<?= htmlspecialchars($config['token'] ?? ''); ?>" placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ" autocomplete="off">
               </div>
 
               <div class="col-12 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Webhook Secret Token</label>
+                <label class="label-block">Webhook Secret Token</label>
                 <input class="form-control" type="text" name="webhook_secret" value="<?= htmlspecialchars($config['webhook_secret'] ?? ''); ?>" placeholder="Random secret string untuk validasi request Telegram" autocomplete="off">
-                <small class="text-grey" style="display:block; font-size:11px;">Dipakai Telegram pada header <code>X-Telegram-Bot-Api-Secret-Token</code>.</small>
+                <small class="hint-text">Dipakai Telegram pada header <code>X-Telegram-Bot-Api-Secret-Token</code>.</small>
               </div>
 
               <div class="col-6 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Profil Isolir</label>
+                <label class="label-block">Profil Isolir</label>
                 <input class="form-control" type="text" name="isolir_profile" value="<?= htmlspecialchars($config['isolir_profile'] ?? 'pppoe-ISOLIR'); ?>" placeholder="pppoe-ISOLIR">
               </div>
 
               <div class="col-6 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Tgl Batas Bayar</label>
+                <label class="label-block">Tgl Batas Bayar</label>
                 <input class="form-control" type="number" min="1" max="28" name="cutoff_day" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
               </div>
 
               <div class="col-12 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Owner IDs</label>
+                <label class="label-block">Owner IDs</label>
                 <input class="form-control" type="text" name="owner_ids" value="<?= htmlspecialchars(implode(', ', $config['owner_ids'] ?? array())); ?>" placeholder="562035561">
-                <small class="text-grey" style="display:block; font-size:11px;">Telegram User ID yang punya akses penuh, pisahkan dengan koma.</small>
+                <small class="hint-text">Telegram User ID yang punya akses penuh, pisahkan dengan koma.</small>
               </div>
 
               <div class="col-12 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Group IDs</label>
+                <label class="label-block">Group IDs</label>
                 <input class="form-control" type="text" name="group_ids" value="<?= htmlspecialchars(implode(', ', $config['group_ids'] ?? array())); ?>" placeholder="-367197368">
-                <small class="text-grey" style="display:block; font-size:11px;">Chat ID grup Telegram yang boleh mengakses bot.</small>
+                <small class="hint-text">Chat ID grup Telegram yang boleh mengakses bot.</small>
               </div>
 
               <div class="col-12 pd-b-5">
-                <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">Cakupan Izin Grup</label>
+                <label class="label-block">Cakupan Izin Grup</label>
                 <select class="form-control" name="group_scope">
                   <option value="tagih" <?= ($config['group_scope'] ?? '') === 'tagih' ? 'selected' : ''; ?>>Tagih &mdash; /tagihan, /cek, /lunas</option>
                   <option value="lihat" <?= ($config['group_scope'] ?? '') === 'lihat' ? 'selected' : ''; ?>>Lihat Saja &mdash; /tagihan, /cek</option>
@@ -232,9 +232,9 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
         <div class="card-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
             <div class="col-6 pd-b-5">
-              <label class="pd-b-3" style="display:block; font-size:12px; font-weight:600;">URL Webhook</label>
+              <label class="label-block">URL Webhook</label>
               <input class="form-control" type="text" name="webhook_url" value="<?= htmlspecialchars($suggested_webhook); ?>">
-              <small class="text-grey" style="display:block; font-size:11px;">Harus domain publik ber-HTTPS. Domain lokal (AdGuard rewrite) tidak bisa dijangkau server Telegram.</small>
+              <small class="hint-text">Harus domain publik ber-HTTPS. Domain lokal (AdGuard rewrite) tidak bisa dijangkau server Telegram.</small>
             </div>
 
             <?php if (!empty($active_webhook_url)): ?>
@@ -263,7 +263,7 @@ if (($me['ok'] ?? false) && !empty($me['result']['username'])) {
             <li><code>/isolir &lt;user&gt;</code> <span>Isolir pelanggan menunggak</span></li>
             <li><code>/cek &lt;user&gt;</code> <span>Cek koneksi &amp; status tagihan</span></li>
           </ul>
-          <small class="text-grey" style="display:block; margin-top:8px;">
+          <small class="hint-text">
             <i class="fa fa-bolt"></i> Aksi dari Telegram langsung ter-push <em>live</em> ke tabel PPPoE tanpa refresh.
           </small>
         </div>
