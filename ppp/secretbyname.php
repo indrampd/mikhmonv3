@@ -31,18 +31,35 @@ if (isset($_POST['save'])) {
     $comment = trim($_POST['comment']);
     $disabled = ($_POST['disabled'] === 'yes') ? 'yes' : 'no';
 
+    // RouterOS rejects the whole request when an address argument is empty
+    // ("invalid value for argument address"), which made every save silently
+    // fail. Empty optional values are sent as an explicit clear instead.
     $params = array(
         ".id" => $sec['.id'],
         "password" => $password,
         "service" => $service,
         "profile" => $profile,
         "disabled" => $disabled,
-        "local-address" => $local_addr,
-        "remote-address" => $remote_addr,
         "comment" => $comment,
     );
+    foreach (array("local-address" => $local_addr, "remote-address" => $remote_addr) as $key => $val) {
+        $params[$key] = ($val === "" || $val === null) ? "0.0.0.0/0" : $val;
+        if ($val === "") {
+            unset($params[$key]);
+        }
+    }
 
-    $API->comm("/ppp/secret/set", $params);
+    $res = $API->comm("/ppp/secret/set", $params);
+    if (is_array($res) && !empty($res["!trap"])) {
+        $err = "";
+        foreach ($res["!trap"] as $trap) {
+            $err .= ($trap["message"] ?? "unknown error") . " ";
+        }
+        $_SESSION["ppp_edit_error"] = trim($err);
+        header("Location: ./?secret=" . urlencode($secretbyname) . "&session=" . urlencode($session));
+        exit();
+    }
+    unset($_SESSION["ppp_edit_error"]);
 
     // If active, disconnect to apply immediately if profile/password changed
     if (isset($_POST['disconnect_active'])) {
@@ -64,6 +81,13 @@ if (isset($_POST['save'])) {
         <h3><i class="fa fa-edit"></i> Edit Secret: <strong><?= htmlspecialchars($sec['name']); ?></strong></h3>
       </div>
       <div class="card-body">
+        <?php if (!empty($_SESSION["ppp_edit_error"])): ?>
+          <div class="alert bg-danger pd-10 radius-3 mr-b-10">
+            <i class="fa fa-ban"></i> RouterOS menolak perubahan:
+            <strong><?= htmlspecialchars($_SESSION["ppp_edit_error"]); ?></strong>
+          </div>
+          <?php unset($_SESSION["ppp_edit_error"]); ?>
+        <?php endif; ?>
         <form autocomplete="off" method="post" action="">
           <table class="table">
             <tr>
