@@ -1,3 +1,4 @@
+<?php include_once('./lang/isocodelang.php'); ?>
 <?php
 /*
  *  Copyright (C) 2018 Laksamadi Guko.
@@ -158,7 +159,7 @@ if (!isset($_SESSION["mikhmon"])) {
   } elseif ($ppp == "addsecret") {
     $mppp = "active";
     $saddsecret = "active";
-    $mpage = "Tambah Secret";
+    $mpage = $_add_ppp_secret ?? "Tambah Secret";
     $pppmenu = "menu-open";
     $pppsecmenu = "menu-open";
   } elseif ($ppp == "profiles" || $removepprofile != "" || $ppp == "edit-profile") {
@@ -170,7 +171,7 @@ if (!isset($_SESSION["mikhmon"])) {
   } elseif ($ppp == "add-profile") {
     $mppp = "active";
     $saddpprofile = "active";
-    $mpage = "Tambah Profile";
+    $mpage = $_add_ppp_profile ?? "Tambah Profile";
     $pppmenu = "menu-open";
     $pppprofmenu = "menu-open";
   } elseif ($ppp == "active" || $removepactive != "") {
@@ -180,7 +181,7 @@ if (!isset($_SESSION["mikhmon"])) {
     $pppmenu = "menu-open";
   } elseif ($billing != "") {
     $sbilling = "active";
-    $mpage = "Bot & Tagihan";
+    $mpage = $_bot_and_billing ?? "Bot & Tagihan";
   } elseif ($sys == "scheduler" || $enablesch != "" || $disablesch != "" || $removesch != "") {
     $sysmenu = "active";
     $ssch = "active";
@@ -331,6 +332,20 @@ include('./info.php');
     }
     ?>
   </select>
+  <select class="slang ses text-right mr-t-10 pd-5">
+    <option> <?= $language ?></option>
+    <?php 
+      $fileList = glob('lang/*');
+      foreach($fileList as $filename){
+        if(is_file($filename)){
+          $filename = substr(explode("/",$filename)[1],0,-4);
+          if($filename == "isocodelang"){}else{
+            echo '<option value="'.$url.'&setlang=' . $filename . '">'. $isocodelang[$filename]. '</option>'; 
+         }   
+        }
+      }
+    ?>
+  </select>
   <select class="connect optfa ses text-right mr-t-10 pd-5">
     <option id="MikhmonSession" value="<?= $session; ?>"><?= $hotspotname; ?></option>
       <?php
@@ -390,31 +405,31 @@ include('./info.php');
    <a href="./?hotspot=cookies&session=<?= $session; ?>" class="menu <?= $scookies; ?>"><i class=" fa fa-hourglass"></i> <?= $_hotspot_cookies ?></a>
   </div>
   <!--pppoe-->
-  <div class="dropdown-btn <?= $mppp; ?>"><i class="fa fa-plug"></i> PPPoE
+  <div class="dropdown-btn <?= $mppp; ?>"><i class="fa fa-plug"></i> <?= $_pppoe ?? "PPPoE"; ?>
     <i class="fa fa-caret-down"></i>
   </div>
   <div class="dropdown-container <?= $pppmenu; ?>">
     <!--secret-->
-    <div class="dropdown-btn <?= $ssecrets . $saddsecret; ?>"><i class="fa fa-users"></i> Secret
+    <div class="dropdown-btn <?= $ssecrets . $saddsecret; ?>"><i class="fa fa-users"></i> <?= $_ppp_secret ?? "Secret"; ?>
       <i class="fa fa-caret-down"></i>
     </div>
     <div class="dropdown-container <?= $pppsecmenu; ?>">
-      <a href="./?ppp=secrets&session=<?= $session; ?>" class="<?= $ssecrets; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> Daftar Secret </a>
-      <a href="./?ppp=addsecret&session=<?= $session; ?>" class="<?= $saddsecret; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-user-plus"></i> Tambah Secret </a>
+      <a href="./?ppp=secrets&session=<?= $session; ?>" class="<?= $ssecrets; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> <?= $_ppp_secret_list ?? "Daftar Secret"; ?> </a>
+      <a href="./?ppp=addsecret&session=<?= $session; ?>" class="<?= $saddsecret; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-user-plus"></i> <?= $_add_ppp_secret ?? "Tambah Secret"; ?> </a>
     </div>
     <!--profile-->
-    <div class="dropdown-btn <?= $spprofile . $saddpprofile; ?>"><i class="fa fa-pie-chart"></i> Profile
+    <div class="dropdown-btn <?= $spprofile . $saddpprofile; ?>"><i class="fa fa-pie-chart"></i> <?= $_ppp_profiles ?? "Profiles"; ?>
       <i class="fa fa-caret-down"></i>
     </div>
     <div class="dropdown-container <?= $pppprofmenu; ?>">
-      <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> Daftar Profile </a>
-      <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> Tambah Profile </a>
+      <a href="./?ppp=profiles&session=<?= $session; ?>" class="<?= $spprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-list"></i> <?= $_ppp_profile_list ?? "Daftar Profile"; ?> </a>
+      <a href="./?ppp=add-profile&session=<?= $session; ?>" class="<?= $saddpprofile; ?>"> &nbsp;&nbsp;&nbsp;<i class="fa fa-plus-square"></i> <?= $_add_ppp_profile ?? "Tambah Profile"; ?> </a>
     </div>
     <!--active connection-->
-    <a href="./?ppp=active&session=<?= $session; ?>" class="menu <?= $spactive; ?>"><i class="fa fa-exchange"></i> Active Connection </a>
+    <a href="./?ppp=active&session=<?= $session; ?>" class="menu <?= $spactive; ?>"><i class="fa fa-exchange"></i> <?= $_ppp_active_conn ?? "Active Connection"; ?> </a>
   </div>
   <!--bot & tagihan standalone-->
-  <a href="./?billing=overview&session=<?= $session; ?>" class="menu <?= $sbilling; ?>"><i class="fa fa-telegram"></i> Bot & Tagihan </a>
+  <a href="./?billing=overview&session=<?= $session; ?>" class="menu <?= $sbilling; ?>"><i class="fa fa-telegram"></i> <?= $_bot_and_billing ?? "Bot & Tagihan"; ?> </a>
   <!--quick print-->
   <a href="./?hotspot=quick-print&session=<?= $session; ?>" class="menu <?= $squick; ?>"> <i class="fa fa-print"></i> <?= $_quick_print ?> </a>
   <!--vouchers-->

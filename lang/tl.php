@@ -77,7 +77,7 @@ $_package = "Package";
 $_password = "Password";
 $_please_login = "Pakiusap pumasok";
 $_ppp_active = "Actibong PPP";
-$_ppp_profiles = "PPP Profiles";
+$_ppp_profiles = "Mga Profile ng PPP";
 $_ppp_secrets = "Mga sekretong PPP";
 $_prefix = "Panugpong";
 $_price = "Presyo";
@@ -206,3 +206,13 @@ $_delete_report = '
 		        <li>Inirerekomenda rin na i download muna ang '.$_user_log.' . </li>
 		      </ul>
 ';
+// PPPoE & Billing Menu
+$_ppp_secret_list = "Listahan ng Gumagamit";
+$_add_ppp_secret = "Magdagdag ng Gumagamit";
+$_ppp_profile_list = "Listahan ng Profile";
+$_add_ppp_profile = "Magdagdag ng Profile";
+$_ppp_active_conn = "Aktibong Koneksyon";
+$_bot_and_billing = "Bot at Singilin";
+
+$_pppoe = "PPPoE";
+$_ppp_secret = "Mga Gumagamit ng PPP";

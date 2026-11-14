@@ -41,6 +41,7 @@ if (!isset($_SESSION["mikhmon"])) {
 
 // lang
   include('./include/lang.php');
+  include('./settings/setlang.php');
   include('./lang/'.$langid.'.php');
 
 // quick bt

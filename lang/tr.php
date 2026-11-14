@@ -209,3 +209,14 @@ $_delete_report = '
 
 //Translated by: ihsan Keskin
 //For Contact: https://ihsankeskin.org
+
+// PPPoE & Billing Menu
+$_ppp_secret_list = "Kullanıcı Listesi";
+$_add_ppp_secret = "Kullanıcı Ekle";
+$_ppp_profile_list = "Profil Listesi";
+$_add_ppp_profile = "Profil Ekle";
+$_ppp_active_conn = "Aktif Bağlantı";
+$_bot_and_billing = "Bot ve Faturalandırma";
+
+$_pppoe = "PPPoE";
+$_ppp_secret = "PPP Kullanıcıları";

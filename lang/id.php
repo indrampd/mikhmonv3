@@ -205,3 +205,13 @@ $_delete_report = '
 		        <li>Disarankan untuk mengunduh '.$_user_log.' terlebih dahulu.</li>
 		      </ul>
 ';
+// PPPoE & Billing Menu
+$_ppp_secret_list = "Daftar Pengguna";
+$_add_ppp_secret = "Tambah Pengguna";
+$_ppp_profile_list = "Daftar Profil";
+$_add_ppp_profile = "Tambah Profil";
+$_ppp_active_conn = "Koneksi Aktif";
+$_bot_and_billing = "Bot & Tagihan";
+
+$_pppoe = "PPPoE";
+$_ppp_secret = "Pengguna PPP";

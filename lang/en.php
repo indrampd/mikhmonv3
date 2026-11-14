@@ -206,3 +206,13 @@ $_delete_report = '
 		        <li>It is recommended to download '.$_user_log.' first. </li>
 		      </ul>
 ';
+// PPPoE & Billing Menu
+$_ppp_secret_list = "User List";
+$_add_ppp_secret = "Add User";
+$_ppp_profile_list = "Profile List";
+$_add_ppp_profile = "Add Profile";
+$_ppp_active_conn = "Active Connection";
+$_bot_and_billing = "Bot & Billing";
+
+$_pppoe = "PPPoE";
+$_ppp_secret = "PPP Users";
