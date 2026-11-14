@@ -20,7 +20,7 @@ $msg_alert = '';
 $alert_type = 'info';
 
 // Process Actions
-if (isset($_POST['save_bot_config'])) {
+if (isset($_POST['save_bot_config']) || ($_POST['action_type'] ?? '') === 'save_config') {
     $token = trim($_POST['bot_token'] ?? '');
     $secret = trim($_POST['webhook_secret'] ?? '');
     $isolir_prof = trim($_POST['isolir_profile'] ?? 'pppoe-ISOLIR');
@@ -41,9 +41,15 @@ if (isset($_POST['save_bot_config'])) {
     $config['owner_ids'] = $owner_ids;
     $config['group_ids'] = $group_ids;
 
-    MikhmonBilling::saveConfig($config);
-    $msg_alert = "Konfigurasi Bot Telegram berhasil disimpan!";
-    $alert_type = "success";
+    $saved = MikhmonBilling::saveConfig($config);
+    if ($saved !== false) {
+        $config = MikhmonBilling::getConfig();
+        $msg_alert = "Konfigurasi Bot Telegram berhasil disimpan!";
+        $alert_type = "success";
+    } else {
+        $msg_alert = "Gagal menyimpan file konfigurasi. Periksa hak akses direktori data/.";
+        $alert_type = "danger";
+    }
 } elseif (isset($_POST['set_webhook'])) {
     $webhook_url = trim($_POST['webhook_url'] ?? '');
     $secret = $config['webhook_secret'] ?? '';
@@ -153,6 +159,8 @@ $suggested_webhook = "{$proto}://{$current_host}/bot.php";
         </div>
         <div class="card-body">
           <form method="POST" action="./?billing=overview&session=<?= $session; ?>">
+            <input type="hidden" name="action_type" value="save_config">
+            <input type="hidden" name="save_bot_config" value="1">
             <div class="form-group mr-b-10">
               <label>Telegram Bot Token:</label>
               <input type="password" name="bot_token" class="form-control" style="width:100%; padding:6px;" value="<?= htmlspecialchars($config['token'] ?? ''); ?>" placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ">

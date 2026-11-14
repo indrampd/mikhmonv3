@@ -87,7 +87,13 @@ class MikhmonBilling
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);
         }
-        return file_put_contents($cfg_file, json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+        $json = json_encode($config, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+        $res = @file_put_contents($cfg_file, $json);
+        if ($res === false) {
+            @chmod($cfg_file, 0666);
+            $res = @file_put_contents($cfg_file, $json);
+        }
+        return $res;
     }
 
     /* ==========================================================
