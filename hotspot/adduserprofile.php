@@ -88,7 +88,8 @@ if (!isset($_SESSION["mikhmon"])) {
     $API->comm("/ip/hotspot/user/profile/add", array(
 			  		  /*"add-mac-cookie" => "yes",*/
       "name" => "$name",
-      "address-pool" => "$addrpool",
+      /* address-pool blank is dropped by routeros_safe_set */
+      "address-pool" => trim((string)$addrpool),
       "rate-limit" => "$ratelimit",
       "shared-users" => "$sharedusers",
       "status-autorefresh" => "1m",

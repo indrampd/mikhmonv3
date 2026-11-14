@@ -38,7 +38,7 @@ if (isset($_POST['save'])) {
         ".id" => $sec['.id'],
         "password" => $password,
         "service" => $service,
-        "profile" => $profile,
+        "profile" => routeros_profile_id($API, 'ppp', $profile),
         "disabled" => $disabled,
         "comment" => $comment,
     );

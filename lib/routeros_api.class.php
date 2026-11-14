@@ -566,6 +566,47 @@ function routeros_safe_set($API, $command, $params)
     return array('ok' => true, 'error' => '');
 }
 
+
+/**
+ * Turn a PPP or hotspot profile name into its RouterOS .id.
+ *
+ * RouterOS matches a profile argument by prefix, so a name that matches more
+ * than one profile is rejected with "ambiguous value of profile" and the whole
+ * set/add call is discarded. Passing the .id removes that failure mode.
+ * The name is returned unchanged when nothing matches, so a genuine typo still
+ * reaches the router and reports its own error.
+ *
+ * @param string $kind "ppp" or "hotspot"
+ */
+function routeros_profile_id($API, $kind, $name)
+{
+    $name = trim((string)$name);
+    if ($name === '') {
+        return $name;
+    }
+    // Already an id (".id" or "*N").
+    if ($name[0] === '*' || strpos($name, '.id') === 0) {
+        return $name;
+    }
+
+    $path = ($kind === 'hotspot') ? '/ip/hotspot/user/profile/print' : '/ppp/profile/print';
+    $rows = $API->comm($path);
+    if (!is_array($rows)) {
+        return $name;
+    }
+
+    foreach ($rows as $row) {
+        if (!isset($row['name'])) {
+            continue;
+        }
+        if ($row['name'] === $name) {
+            return $row['.id'] ?? $name;
+        }
+    }
+
+    return $name;
+}
+
 function decrypt($string, $key=128) {
 	$string = (string)($string ?? '');
 	$result = '';

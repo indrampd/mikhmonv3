@@ -167,7 +167,8 @@ if (!isset($_SESSION["mikhmon"])) {
 			  		  /*"add-mac-cookie" => "yes",*/
       ".id" => "$pid",
       "name" => "$name",
-      "address-pool" => "$addrpool",
+      /* address-pool blank is dropped by routeros_safe_set */
+      "address-pool" => trim((string)$addrpool),
       "rate-limit" => "$ratelimit",
       "shared-users" => "$sharedusers",
       "status-autorefresh" => "1m",

@@ -238,7 +238,9 @@ class MikhmonBilling
             'comment' => $newComment
         );
         if ($profile !== $targetPkg && !empty($targetPkg)) {
-            $payload['profile'] = $targetPkg;
+            // .id, not the name: a prefix match across several profiles is
+            // rejected by RouterOS and would drop this whole set call.
+            $payload['profile'] = routeros_profile_id($API, 'ppp', $targetPkg);
         }
 
         $API->comm("/ppp/secret/set", $payload);
@@ -277,7 +279,7 @@ class MikhmonBilling
 
         $API->comm("/ppp/secret/set", array(
             '.id' => $id,
-            'profile' => $isolirProfile,
+            'profile' => routeros_profile_id($API, 'ppp', $isolirProfile),
             'comment' => $newComment
         ));
 
@@ -312,7 +314,7 @@ class MikhmonBilling
 
         $API->comm("/ppp/secret/set", array(
             '.id' => $id,
-            'profile' => $targetPkg
+            'profile' => routeros_profile_id($API, 'ppp', $targetPkg)
         ));
 
         self::killActiveSession($API, $username);

@@ -264,7 +264,7 @@ if ($currency == in_array($currency, $cekindo['indo'])) {
       "server" => "$server",
       "name" => "$name",
       "password" => "$password",
-      "profile" => "$profile",
+      "profile" => routeros_profile_id($API, 'hotspot', $profile),
       "disabled" => "$disabled",
       "limit-uptime" => "$timelimit",
       "limit-bytes-total" => "$datalimit",

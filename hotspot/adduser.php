@@ -58,7 +58,7 @@ if (!isset($_SESSION["mikhmon"])) {
       "server" => "$server",
       "name" => "$name",
       "password" => "$password",
-      "profile" => "$profile",
+      "profile" => routeros_profile_id($API, 'hotspot', $profile),
       "disabled" => "no",
       "limit-uptime" => "$timelimit",
       "limit-bytes-total" => "$datalimit",
