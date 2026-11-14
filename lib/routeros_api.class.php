@@ -518,6 +518,54 @@ function encrypt($string, $key=128) {
 	}
 	return base64_encode($result);
 }
+
+/**
+ * Run a RouterOS "set" command without tripping on blank optional fields.
+ *
+ * RouterOS answers a blank address argument with
+ * !trap "invalid value for argument address" and discards the whole request,
+ * so one empty input silently cancels every other change in the same call.
+ * Blank values for address-like keys are dropped, a blank .id is refused, and
+ * a !trap response is returned as a readable message instead of an array.
+ *
+ * @return array{ok: bool, error: string}
+ */
+function routeros_safe_set($API, $command, $params)
+{
+    $address_keys = array(
+        'local-address', 'remote-address', 'address-pool', 'src-address',
+        'dst-address', 'dns-server', 'address', 'to-addresses',
+    );
+
+    if (empty($params['.id'])) {
+        return array('ok' => false, 'error' => 'Data tidak ditemukan di router (id kosong).');
+    }
+
+    $clean = array();
+    foreach ($params as $key => $value) {
+        if ($key === '.id') {
+            $clean[$key] = $value;
+            continue;
+        }
+        $is_blank = ($value === '' || $value === null);
+        if ($is_blank && in_array($key, $address_keys, true)) {
+            continue;
+        }
+        $clean[$key] = $value;
+    }
+
+    $res = $API->comm($command, $clean);
+    if (is_array($res) && !empty($res['!trap'])) {
+        $message = '';
+        foreach ($res['!trap'] as $trap) {
+            $message .= ($trap['message'] ?? 'unknown error') . ' ';
+        }
+        return array('ok' => false, 'error' => trim($message));
+    }
+
+    return array('ok' => true, 'error' => '');
+}
+
 function decrypt($string, $key=128) {
 	$string = (string)($string ?? '');
 	$result = '';

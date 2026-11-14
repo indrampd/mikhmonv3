@@ -40,7 +40,13 @@ if (isset($_POST['save'])) {
         "comment" => $comment,
     );
 
-    $API->comm("/ppp/profile/set", $params);
+    $result = routeros_safe_set($API, "/ppp/profile/set", $params);
+    if (!$result["ok"]) {
+        $_SESSION["ppp_edit_error"] = $result["error"];
+        header("Location: ./?name=" . urlencode($pname) . "&session=" . urlencode($session));
+        exit();
+    }
+    unset($_SESSION["ppp_edit_error"]);
 
     echo "<script>window.location='./?ppp=profiles&session=" . $session . "'</script>";
     exit();
@@ -54,6 +60,13 @@ if (isset($_POST['save'])) {
         <h3><i class="fa fa-edit"></i> Edit PPP Profile: <strong><?= htmlspecialchars($prof['name']); ?></strong></h3>
       </div>
       <div class="card-body">
+        <?php if (!empty($_SESSION["ppp_edit_error"])): ?>
+          <div class="alert bg-danger pd-10 radius-3 mr-b-10">
+            <i class="fa fa-ban"></i> RouterOS menolak perubahan:
+            <strong><?= htmlspecialchars($_SESSION["ppp_edit_error"]); ?></strong>
+          </div>
+          <?php unset($_SESSION["ppp_edit_error"]); ?>
+        <?php endif; ?>
         <form autocomplete="off" method="post" action="">
           <table class="table">
             <tr>

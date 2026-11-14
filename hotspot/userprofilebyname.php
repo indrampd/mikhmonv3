@@ -163,7 +163,7 @@ if (!isset($_SESSION["mikhmon"])) {
     $bgservice = ':local dateint do={:local montharray ( "jan","feb","mar","apr","may","jun","jul","aug","sep","oct","nov","dec" );:local days [ :pick $d 4 6 ];:local month [ :pick $d 0 3 ];:local year [ :pick $d 7 11 ];:local monthint ([ :find $montharray $month]);:local month ($monthint + 1);:if ( [len $month] = 1) do={:local zero ("0");:return [:tonum ("$year$zero$month$days")];} else={:return [:tonum ("$year$month$days")];}}; :local timeint do={ :local hours [ :pick $t 0 2 ]; :local minutes [ :pick $t 3 5 ]; :return ($hours * 60 + $minutes) ; }; :local date [ /system clock get date ]; :local time [ /system clock get time ]; :local today [$dateint d=$date] ; :local curtime [$timeint t=$time] ; :foreach i in [ /ip hotspot user find where profile="'.$name.'" ] do={ :local comment [ /ip hotspot user get $i comment]; :local name [ /ip hotspot user get $i name]; :local gettime [:pic $comment 12 20]; :if ([:pic $comment 3] = "/" and [:pic $comment 6] = "/") do={:local expd [$dateint d=$comment] ; :local expt [$timeint t=$gettime] ; :if (($expd < $today and $expt < $curtime) or ($expd < $today and $expt > $curtime) or ($expd = $today and $expt < $curtime)) do={ [ /ip hotspot user '.$mode.' $i ]; [ /ip hotspot active remove [find where user=$name] ];}}}';
     
 
-    $API->comm("/ip/hotspot/user/profile/set", array(
+    $result = routeros_safe_set($API, "/ip/hotspot/user/profile/set", array(
 			  		  /*"add-mac-cookie" => "yes",*/
       ".id" => "$pid",
       "name" => "$name",
@@ -175,6 +175,11 @@ if (!isset($_SESSION["mikhmon"])) {
       "on-login" => "$onlogin",
       "parent-queue" => "$parent",
     ));
+    if (!$result["ok"]) {
+      $_SESSION["hotspot_edit_error"] = $result["error"];
+    } else {
+      unset($_SESSION["hotspot_edit_error"]);
+    }
     if($expmode != "0"){
     if (empty($monid)){
       $API->comm("/system/scheduler/add", array(
@@ -211,6 +216,13 @@ if (!isset($_SESSION["mikhmon"])) {
     <h3><i class="fa fa-edit"></i> <?= $_edit." ".$_user_profile ?> </h3>
 </div>
 <div class="card-body">
+<?php if (!empty($_SESSION["hotspot_edit_error"])): ?>
+  <div class="alert bg-danger pd-10 radius-3 mr-b-10">
+    <i class="fa fa-ban"></i> RouterOS menolak perubahan:
+    <strong><?= htmlspecialchars($_SESSION["hotspot_edit_error"]); ?></strong>
+  </div>
+  <?php unset($_SESSION["hotspot_edit_error"]); ?>
+<?php endif; ?>
 <form autocomplete="off" method="post" action="">
   <div>
     <a class="btn bg-warning" href="./?hotspot=user-profiles&session=<?= $session; ?>"> <i class="fa fa-close"></i> <?= $_close?></a>

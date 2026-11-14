@@ -252,7 +252,7 @@ if ($currency == in_array($currency, $cekindo['indo'])) {
       $comment = $usermode.$comment;
     }
 
-    $API->comm("/ip/hotspot/user/set", array(
+    $result = routeros_safe_set($API, "/ip/hotspot/user/set", array(
       ".id" => "$uid",
       "server" => "$server",
       "name" => "$name",
@@ -263,6 +263,11 @@ if ($currency == in_array($currency, $cekindo['indo'])) {
       "limit-bytes-total" => "$datalimit",
       "comment" => "$comment",
     ));
+    if (!$result["ok"]) {
+      $_SESSION["hotspot_edit_error"] = $result["error"];
+    } else {
+      unset($_SESSION["hotspot_edit_error"]);
+    }
     echo "<script>window.location='./?hotspot-user=" . $uid . "&session=" . $session . "'</script>";
   }
 }
@@ -286,6 +291,13 @@ include('./voucher/printbt.php');
     <h3><i class="fa fa-edit"></i> <?php  echo $_edit_user.' '.$uname.' '; if ($utimelimit == "1s") {  echo $_expired;}?></h3>
 </div>
 <div class="card-body">
+<?php if (!empty($_SESSION["hotspot_edit_error"])): ?>
+  <div class="alert bg-danger pd-10 radius-3 mr-b-10">
+    <i class="fa fa-ban"></i> RouterOS menolak perubahan:
+    <strong><?= htmlspecialchars($_SESSION["hotspot_edit_error"]); ?></strong>
+  </div>
+  <?php unset($_SESSION["hotspot_edit_error"]); ?>
+<?php endif; ?>
 <form autocomplete="new-password" method="post" action="">
   <div>
     <?php if ($_SESSION['ubp'] != "") {
