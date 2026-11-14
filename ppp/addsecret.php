@@ -16,7 +16,14 @@ if (isset($_POST['save'])) {
     $name = trim($_POST['name']);
     $password = trim($_POST['pass']);
     $service = $_POST['service'] ?? 'pppoe';
-    $profile = $_POST['profile'] ?? 'default';
+    $profile_name = trim($_POST['profile'] ?? 'default');
+    // Send the profile id: a name that partially matches several profiles is
+    // rejected by RouterOS with "ambiguous value of profile".
+    $profile = $profile_name;
+    $prof_lookup = $API->comm("/ppp/profile/print", array("?name" => $profile_name));
+    if (is_array($prof_lookup) && !empty($prof_lookup[0]['.id'])) {
+        $profile = $prof_lookup[0]['.id'];
+    }
     $local_addr = trim($_POST['local_address']);
     $remote_addr = trim($_POST['remote_address']);
     $comment = trim($_POST['comment']);

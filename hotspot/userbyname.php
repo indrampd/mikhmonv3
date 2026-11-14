@@ -218,7 +218,14 @@ if ($currency == in_array($currency, $cekindo['indo'])) {
     $server = ($_POST['server']);
     $name = ($_POST['name']);
     $password = ($_POST['pass']);
-    $profile = ($_POST['profile']);
+    $profile_name = trim($_POST['profile']);
+    // Resolve to the profile id: RouterOS rejects a name that matches more than
+    // one profile ("ambiguous value of profile") and the set is discarded.
+    $profile = $profile_name;
+    $prof_lookup = $API->comm("/ip/hotspot/user/profile/print", array("?name" => $profile_name));
+    if (is_array($prof_lookup) && !empty($prof_lookup[0]['.id'])) {
+        $profile = $prof_lookup[0]['.id'];
+    }
     $disabled = ($_POST['disabled']);
     $timelimit = ($_POST['timelimit']);
     $datalimit = ($_POST['datalimit']);
@@ -379,10 +386,11 @@ include('./voucher/printbt.php');
   <tr>
     <td class="align-middle"><?= $_profile ?></td><td>
 			<select class="form-control" name="profile" required="1">
-				<option><?= $uprofile; ?></option>
+				<option value="<?= htmlspecialchars($uprofile); ?>"><?= htmlspecialchars($uprofile); ?></option>
 				<?php $TotalReg = count($getprofile);
     for ($i = 0; $i < $TotalReg; $i++) {
-      echo "<option>" . $getprofile[$i]['name'] . "</option>";
+      if ($getprofile[$i]['name'] === $uprofile) { continue; }
+      echo '<option value="' . htmlspecialchars($getprofile[$i]['name']) . '">' . htmlspecialchars($getprofile[$i]['name']) . '</option>';
     }
     ?>
 			</select>
