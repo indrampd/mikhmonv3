@@ -133,6 +133,20 @@ if (!isset($_SESSION["mikhmon"])) {
   $pageppp = array('secrets','profiles','active',);
   $pagereport = array('userlog','selling');
 
+// Aksi POST halaman billing (simpan config, webhook, dsb.) harus selesai
+// sebelum output apa pun, supaya redirect PRG-nya bisa mengirim header
+// Location. Kalau diproses setelah menu/sidebar ter-render, header() gagal
+// dan browser hanya menerima halaman terpotong (tampilan blank).
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $billing != "") {
+    include_once('./billing/process.php');
+}
+
+// Aksi bulk (checkbox) halaman PPP/Hotspot juga harus selesai sebelum output,
+// responsnya JSON untuk fetch() di halaman.
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && !empty($_POST['bulk_action'])) {
+    include_once('./process/bulk.php');
+}
+
   include_once('./include/headhtml.php');
 
   include_once('./include/menu.php');

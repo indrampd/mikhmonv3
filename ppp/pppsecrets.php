@@ -105,7 +105,7 @@ $TotalReg = count($filtered_users);
     <div class="col-6 pd-t-5 pd-b-5">
       <div class="input-group">
         <div class="input-group-4 col-box-4">
-          <input id="filterTable" type="text" style="padding:5.8px;" class="group-item group-item-l" placeholder="<?= $_search ?? "Cari user, IP, komentar..." ?>">
+          <input id="tableSearch" type="text" style="padding:5.8px;" class="group-item group-item-l" placeholder="<?= $_search ?? "Cari user, IP, komentar..." ?>">
         </div>
         <div class="input-group-4 col-box-4">
           <select style="padding:5px;" class="group-item group-item-m" onchange="location = this.value; loader()" title="Filter by Profile">
@@ -131,6 +131,15 @@ $TotalReg = count($filtered_users);
     </div>
   </div>
 
+  <!-- Bulk bar: muncul saat ada checkbox terpilih -->
+  <div id="bulkBar" style="display:none; margin:0 0 10px; padding:8px 10px; border:1px dashed rgba(128,128,128,.35); border-radius:4px; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;">
+    <strong id="bulkCount">0</strong>&nbsp;terpilih:
+    <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('enable')"><i class="fa fa-unlock"></i> Enable</button>
+    <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('disable')"><i class="fa fa-lock"></i> Disable</button>
+    <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Hapus</button>
+    <button type="button" class="btn bg-success radius-3 pd-5" onclick="bulkAct('lunas')"><i class="fa fa-check"></i> Tandai Lunas</button>
+  </div>
+
   <div id="liveAlertBox" style="display:none; margin:0 0 12px; padding:9px 12px; border:1px solid #1EA4E1; border-left:3px solid #20a8d8; border-radius:4px; background:#3a4149; color:#e4e7ea; box-sizing:border-box; max-width:100%; overflow-wrap:anywhere;">
     <i class="fa fa-bolt"></i> <span id="liveAlertText">Live event</span>
   </div>
@@ -140,10 +149,14 @@ $TotalReg = count($filtered_users);
   <table id="dataTable" class="table table-bordered table-hover text-nowrap">
     <thead>
     <tr>
-      <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Username</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profile</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Remote IP</th>
+      <th style="width:30px; text-align:center;" title="Pilih semua di halaman ini"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
+      <th style="width:70px; text-align:center;">Aksi</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Nama</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Layanan</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Caller ID</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profil</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> IP</th>
+      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Terakhir Keluar</th>
       <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
       <th class="pointer text-center" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
       <th class="text-center" style="width:165px;">Aksi Cepat</th>
@@ -152,7 +165,7 @@ $TotalReg = count($filtered_users);
     <tbody id="tbody">
     <?php
     if ($TotalReg === 0) {
-        echo "<tr><td colspan='7' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
+        echo "<tr><td colspan='11' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
     }
 
     for ($i = 0; $i < $TotalReg; $i++) {
@@ -162,21 +175,29 @@ $TotalReg = count($filtered_users);
         $upass = $userdetails['password'] ?? '';
         $uprofile = $userdetails['profile'] ?? 'default';
         $uservice = $userdetails['service'] ?? 'pppoe';
-        $uremote = $userdetails['remote-address'] ?? '-';
+        $ucaller = $userdetails['caller-id'] ?? '';
+        $ulastout = $userdetails['last-logged-out'] ?? '';
+        $uremote = $userdetails['remote-address'] ?? '';
         $ucomment = $userdetails['comment'] ?? '';
         $udisabled = ($userdetails['disabled'] === 'true');
         $is_online = isset($active_map[$uname]);
+        $uip = ($is_online && !empty($active_map[$uname]['address'])) ? $active_map[$uname]['address'] : $uremote;
 
         // Tagihan parsing
         $stat = MikhmonBilling::getStatus($uprofile, $ucomment);
         $parsed = MikhmonBilling::parseComment($ucomment);
         $is_isolir = ($stat['code'] === 'isolir' || $uprofile === 'pppoe-ISOLIR');
 
-        echo "<tr id='row-user-" . htmlspecialchars($uname) . "' data-user='" . htmlspecialchars($uname) . "'>";
-        
-        // Col 1: Action (Lock / Delete) - Same style as Hotspot Users
+        echo "<tr class='row-data' id='row-user-" . htmlspecialchars($uname) . "' data-user='" . htmlspecialchars($uname) . "'>";
+
+        // Col 1: checkbox bulk
         echo "<td style='text-align:center;'>";
-        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
+        echo "<input type='checkbox' class='row-check' data-id=\"" . htmlspecialchars($uid) . "\" data-name=\"" . htmlspecialchars($uname) . "\">";
+        echo "</td>";
+
+        // Col 2: Action (Lock / Delete)
+        echo "<td style='text-align:center;'>";
+        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;&nbsp;&nbsp;";
         if ($udisabled) {
             $uriprocess = "'./?enable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
             echo '<span class="text-warning pointer" title="Enable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-lock"></i></span></td>';
@@ -185,18 +206,29 @@ $TotalReg = count($filtered_users);
             echo '<span class="pointer" title="Disable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-unlock"></i></span></td>';
         }
 
-        // Status dot color for connection: green if online, muted if offline
-        $dot_color = $is_online ? "text-green" : "text-muted";
-        $dot_title = $is_online ? "Online" : "Offline";
-
-        // Col 2: Username (Hotspot Style: <i class='fa fa-edit'></i> <i class='fa fa-circle ...'></i> Username)
+        // Col 3: Nama + badge Online inline (pola referensi: status menempel di nama)
         echo "<td>";
-        echo "<a title='Open User " . htmlspecialchars($uname) . " (" . $dot_title . ")' href='./?secret=" . urlencode($uname) . "&session=" . $session . "'>";
-        echo "<i class='fa fa-edit'></i> <i class='fa fa-circle " . $dot_color . "' title='" . $dot_title . "'></i> " . htmlspecialchars($uname);
+        echo "<a title='Open User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "'>";
+        echo "<i class='fa fa-edit'></i> " . htmlspecialchars($uname);
         echo "</a>";
+        if ($is_online) {
+            echo " <span class='badge bg-success radius-3' style='font-size:11px; margin-left:6px;'><i class='fa fa-circle' style='font-size:9px;'></i> Online</span>";
+        }
         echo "</td>";
 
-        // Col 3: Profile (with origin package note if currently isolated)
+        // Col 4: Layanan
+        echo "<td>" . htmlspecialchars($uservice) . "</td>";
+
+        // Col 5: Caller ID (MAC perangkat klien)
+        echo "<td>";
+        if ($ucaller !== '') {
+            echo htmlspecialchars($ucaller);
+        } else {
+            echo "<span class='text-muted'>&mdash;</span>";
+        }
+        echo "</td>";
+
+        // Col 6: Profil (dengan paket asal bila sedang isolir)
         echo "<td>";
         echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "'>";
         echo htmlspecialchars($uprofile);
@@ -206,16 +238,25 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 4: Remote IP / Service
+        // Col 7: IP sesi aktif, fallback remote-address statis
         echo "<td>";
-        if (!empty($uremote) && $uremote !== '-') {
-            echo htmlspecialchars($uremote);
+        if ($uip !== '') {
+            echo htmlspecialchars($uip);
         } else {
             echo "<span class='text-muted'>&mdash;</span>";
         }
         echo "</td>";
 
-        // Col 5: Comment / Pelanggan (Same as Hotspot Comment)
+        // Col 8: Terakhir Keluar
+        echo "<td>";
+        if ($ulastout !== '') {
+            echo "<small class='text-muted'>" . htmlspecialchars($ulastout) . "</small>";
+        } else {
+            echo "<span class='text-muted'>&mdash;</span>";
+        }
+        echo "</td>";
+
+        // Col 9: Comment / Pelanggan
         echo "<td>";
         if (!empty($parsed['label'])) {
             echo htmlspecialchars($parsed['label']);
@@ -224,7 +265,7 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 6: Status Tagihan (1 row inline: dot status + label + dot + Tahun-Bulan)
+        // Col 10: Status Tagihan (1 row inline: dot status + label + dot + Tahun-Bulan)
         $tagihan_dot = ($stat['code'] === 'lunas') ? 'text-green' : (($stat['code'] === 'tenggang') ? 'text-yellow' : 'text-danger');
         echo "<td class='text-center' id='badge-tagihan-" . htmlspecialchars($uname) . "'>";
         echo "<i class='fa fa-circle " . $tagihan_dot . "' style='font-size:10px;' title='" . htmlspecialchars($stat['hint']) . "'></i> ";
@@ -234,7 +275,7 @@ $TotalReg = count($filtered_users);
         }
         echo "</td>";
 
-        // Col 7: Aksi Cepat (2 tombol aksi saja: Lunas + Isolir/Pulih)
+        // Col 11: Aksi Cepat (2 tombol aksi saja: Lunas + Isolir/Pulih)
         echo "<td class='text-center'>";
         echo "<div style='display:inline-flex; gap:4px; align-items:center;'>";
         // Button Lunas
@@ -254,11 +295,26 @@ $TotalReg = count($filtered_users);
     </tbody>
   </table>
   </div>
+
+  <!-- Footer pagination -->
+  <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+      <span id="pageInfo">&nbsp;</span>
+      <select id="perPageSel" class="form-control" style="width:auto; padding:2px 6px; font-size:12px;" title="Baris per halaman">
+        <option value="50">50</option>
+        <option value="100" selected>100</option>
+        <option value="200">200</option>
+        <option value="500">500</option>
+      </select>
+    </div>
+    <div id="pagePager" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+  </div>
 </div>
 </div>
 </div>
 </div>
 
+<script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
 // AJAX Action for Lunas / Isolir / Pulih
 function quickBillingAction(action, username) {
@@ -305,6 +361,10 @@ function showToast(msg) {
         }, 5000);
     }
 }
+
+// Bulk (checkbox) + Filter + pagination client-side
+initTableView(100);
+initBulkUI('ppp');
 
 // Server-Sent Events (SSE) Live Updates
 (function initSSE() {

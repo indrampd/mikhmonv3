@@ -39,12 +39,18 @@ if (!isset($_SESSION["mikhmon"])) {
 $getquickprint = $API->comm("/system/script/print", array("?comment" => "QuickPrintMikhmon"));
 $TotalReg = count($getquickprint);
 if ($TotalReg === 0) {
-    echo "<div class='col-12 pd-10'>";
-    echo "<div class='alert bg-secondary text-center radius-3 pd-20' style='margin: 10px 0;'>";
-    echo "<i class='fa fa-info-circle fa-2x text-muted'></i><br><br>";
-    echo "<strong>Belum ada Template Paket Cetak Cepat.</strong><br>";
-    echo "<span class='text-muted' style='font-size: 13px;'>Silakan buat template paket terlebih dahulu di menu <strong>List</strong> untuk memunculkan tombol cetak cepat di sini.</span><br><br>";
-    echo "<a href='./?hotspot=list-quick-print&session=" . $session . "' class='btn bg-primary radius-3'><i class='fa fa-plus'></i> Buat Template Paket</a>";
+    // Panel sempit + terpusat: alert selebar kartu membuat pesan kosong terlihat
+    // seperti blok abu-abu raksasa. Lebar dibatasi 520px, tanpa latar, jadi
+    // proporsinya sama di layar lebar maupun sempit.
+    echo "<div class='col-12'>";
+    echo "<div style='min-height:46vh;display:flex;align-items:center;justify-content:center;'>";
+    echo "<div style='max-width:440px;padding:0 8px;text-align:center;'>";
+    echo "<div style='width:62px;height:62px;margin:0 auto 16px;border-radius:50%;background-color:rgba(32,168,216,.22);display:flex;align-items:center;justify-content:center;'>";
+    echo "<i class='fa fa-print text-primary' style='font-size:26px;line-height:1;'></i>";
+    echo "</div>";
+    echo "<div class='text-bold' style='font-size:16px;margin-bottom:7px;'>Belum ada Template Paket Cetak Cepat</div>";
+    echo "<div class='text-secondary' style='font-size:12.5px;line-height:1.75;margin-bottom:20px;'>Cetak cepat memakai template paket dari menu List. Buat satu template dulu, lalu tombol cetak muncul di sini.</div>";
+    echo "<a href='./?hotspot=list-quick-print&session=" . $session . "' class='btn bg-primary radius-3 pd-5'><i class='fa fa-plus'></i> Buat Template Paket</a>";
     echo "</div>";
     echo "</div>";
 }

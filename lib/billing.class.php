@@ -74,6 +74,7 @@ class MikhmonBilling
             'owner_ids' => array(),
             'group_ids' => array(),
             'group_scope' => 'tagih',
+            'notify_chat_ids' => array(),
             'webhook_secret' => '',
             'isolir_profile' => self::DEFAULT_ISOLIR,
             'cutoff_day' => self::DEFAULT_CUTOFF
@@ -248,7 +249,7 @@ class MikhmonBilling
      * Find one PPP secret by exact name, then by unique partial match.
      *
      * RouterOS matches ?name exactly, so "/cek deni" fails when the secret is
-     * "deni@hotspotxxi.net". A partial match is only accepted when it resolves
+     * "user@contoh.net". A partial match is only accepted when it resolves
      * to a single secret, so an ambiguous query is reported instead of guessing.
      *
      * @return array{0: array|null, 1: string} [secret, error]
@@ -485,6 +486,191 @@ class MikhmonBilling
             }
         }
         return $count;
+    }
+
+    /* ==========================================================
+     * PPPoE Secret Management (Telegram /pp*)
+     * ========================================================== */
+
+    public static function listPppProfiles($API)
+    {
+        $rows = $API->comm('/ppp/profile/print');
+        $names = array();
+        if (is_array($rows)) {
+            foreach ($rows as $row) {
+                if (!empty($row['name'])) {
+                    $names[] = $row['name'];
+                }
+            }
+        }
+        return $names;
+    }
+
+    /**
+     * Password generator without ambiguous characters (0/O, 1/l/I).
+     */
+    public static function generatePassword($length = 8)
+    {
+        $alphabet = 'abcdefghjkmnpqrstuvwxyz23456789';
+        $out = '';
+        for ($i = 0; $i < max(4, (int)$length); $i++) {
+            $out .= $alphabet[random_int(0, strlen($alphabet) - 1)];
+        }
+        return $out;
+    }
+
+    public static function addSecret($API, $name, $profile, $password = '', $label = '')
+    {
+        $name = trim((string)$name);
+        $profile = trim((string)$profile);
+        if ($name === '') {
+            return array('success' => false, 'message' => 'Nama pelanggan kosong.');
+        }
+        // Spasi memecah argumen perintah, | merusak token komentar.
+        if (!preg_match('/^[^\s|]{2,64}$/', $name)) {
+            return array('success' => false, 'message' => "Nama '{$name}' tidak valid (hindari spasi dan |, 2-64 karakter).");
+        }
+        if ($profile === '') {
+            return array('success' => false, 'message' => 'Profil paket kosong.');
+        }
+
+        $exists = $API->comm('/ppp/secret/print', array('?name' => $name));
+        if (is_array($exists) && !empty($exists[0])) {
+            return array('success' => false, 'message' => "Pelanggan '{$name}' sudah ada di router.");
+        }
+
+        if (!in_array($profile, self::listPppProfiles($API), true)) {
+            return array('success' => false, 'message' => "Profil '{$profile}' tidak ada di router.");
+        }
+
+        if (trim((string)$password) === '') {
+            $password = self::generatePassword();
+        }
+
+        // Baru diisi: label + pkg + lunas bulan berjalan (aturan syncComment).
+        $comment = self::syncComment($label !== '' ? $label : $name, $profile, true);
+        $API->comm('/ppp/secret/add', array(
+            'name' => $name,
+            'password' => trim((string)$password),
+            'profile' => routeros_profile_id($API, 'ppp', $profile),
+            'comment' => $comment
+        ));
+
+        self::logEvent('Telegram', 'pp_add', $name, $profile);
+        self::emitLiveEvent('pp_add', $name, $profile);
+
+        return array(
+            'success' => true,
+            'message' => "Pelanggan {$name} ditambahkan dengan paket {$profile}.",
+            'password' => trim((string)$password),
+            'comment' => $comment
+        );
+    }
+
+    public static function setSecretProfile($API, $user, $profile)
+    {
+        $profile = trim((string)$profile);
+        list($cust, $resolveError) = self::resolveSecret($API, $user);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
+        }
+        if ($profile === '' || !in_array($profile, self::listPppProfiles($API), true)) {
+            return array('success' => false, 'message' => "Profil '{$profile}' tidak ada di router.");
+        }
+
+        $comment = $cust['comment'] ?? '';
+        $parsed = self::parseComment($comment);
+        // Paket asli tetap dijaga di komentar saat profil isolir dipilih.
+        $pkg = self::isIsolirProfile($profile) ? ($parsed['pkg'] ?: $profile) : $profile;
+        $newComment = self::buildComment($comment, $pkg, $parsed['lunas'], $parsed['tgl']);
+
+        $API->comm('/ppp/secret/set', array(
+            '.id' => $cust['.id'],
+            'profile' => routeros_profile_id($API, 'ppp', $profile),
+            'comment' => $newComment
+        ));
+
+        self::killActiveSession($API, $cust['name']);
+        self::logEvent('Telegram', 'pp_prof', $cust['name'], $profile);
+        self::emitLiveEvent('pp_prof', $cust['name'], $profile);
+
+        return array(
+            'success' => true,
+            'message' => "Paket {$cust['name']} dialihkan ke {$profile}, sesi aktif diputus.",
+            'profile' => $profile
+        );
+    }
+
+    public static function setSecretPassword($API, $user, $password = '')
+    {
+        list($cust, $resolveError) = self::resolveSecret($API, $user);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
+        }
+        $password = trim((string)$password);
+        if ($password === '') {
+            $password = self::generatePassword();
+        }
+
+        $API->comm('/ppp/secret/set', array(
+            '.id' => $cust['.id'],
+            'password' => $password
+        ));
+
+        // Paksa re-auth agar password baru langsung berlaku.
+        self::killActiveSession($API, $cust['name']);
+        self::logEvent('Telegram', 'pp_pass', $cust['name'], '');
+        self::emitLiveEvent('pp_pass', $cust['name'], 'password direset');
+
+        return array(
+            'success' => true,
+            'message' => "Password {$cust['name']} direset, sesi aktif diputus.",
+            'password' => $password
+        );
+    }
+
+    public static function deleteSecret($API, $user)
+    {
+        list($cust, $resolveError) = self::resolveSecret($API, $user);
+        if ($cust === null) {
+            return array('success' => false, 'message' => $resolveError);
+        }
+
+        self::killActiveSession($API, $cust['name']);
+        $API->comm('/ppp/secret/remove', array('.id' => $cust['.id']));
+
+        self::logEvent('Telegram', 'pp_del', $cust['name'], '');
+        self::emitLiveEvent('pp_del', $cust['name'], 'secret dihapus');
+
+        return array('success' => true, 'message' => "Pelanggan {$cust['name']} dihapus dari router.");
+    }
+
+    /* ==========================================================
+     * Message Templates (SQLite templates table)
+     * ========================================================== */
+
+    public static function getTemplate($name)
+    {
+        try {
+            $db = self::getDb();
+            $stmt = $db->prepare("SELECT body FROM templates WHERE name = ?");
+            $stmt->execute(array($name));
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            return $row ? $row['body'] : null;
+        } catch (Exception $e) {
+            return null;
+        }
+    }
+
+    public static function setTemplate($name, $body)
+    {
+        $db = self::getDb();
+        $stmt = $db->prepare(
+            "INSERT INTO templates (name, body, updated) VALUES (?, ?, ?)
+             ON CONFLICT(name) DO UPDATE SET body = excluded.body, updated = excluded.updated"
+        );
+        $stmt->execute(array($name, $body, date('Y-m-d H:i:s')));
+        return true;
     }
 
     /* ==========================================================

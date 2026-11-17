@@ -5,10 +5,16 @@
  */
 
 require_once __DIR__ . '/billing.class.php';
+require_once __DIR__ . '/hotspot_billing.class.php';
+require_once __DIR__ . '/telegram_hotspot_commands.trait.php';
+require_once __DIR__ . '/telegram_ppp_commands.trait.php';
 require_once __DIR__ . '/routeros_api.class.php';
 
 class MikhmonTelegramBot
 {
+    use TelegramHotspotCommands;
+    use TelegramPppCommands;
+
     private $token;
     private $config;
     private $api_base;
@@ -37,6 +43,9 @@ class MikhmonTelegramBot
         curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
+        // Jangan biarkan satu panggilan menggantung lama di halaman dashboard:
+        // gagal cepat lebih baik daripada badge status berubah jadi "Nonaktif".
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         $res = curl_exec($ch);
         curl_close($ch);
@@ -81,6 +90,39 @@ class MikhmonTelegramBot
         ));
     }
 
+    /**
+     * Send a text file (used for large voucher batches). JSON payloads cannot
+     * carry documents, so this uses a multipart form with CURLFile.
+     */
+    public function sendDocument($chat_id, $filename, $content, $caption = '')
+    {
+        if (empty($this->token)) {
+            return array('ok' => false, 'description' => 'Bot token not configured');
+        }
+        $tmp = tempnam(sys_get_temp_dir(), 'vc');
+        file_put_contents($tmp, $content);
+
+        $url = $this->api_base . '/sendDocument';
+        $ch = curl_init();
+        curl_setopt($ch, CURLOPT_URL, $url);
+        curl_setopt($ch, CURLOPT_POST, true);
+        curl_setopt($ch, CURLOPT_POSTFIELDS, array(
+            'chat_id' => $chat_id,
+            'caption' => $caption,
+            'parse_mode' => 'HTML',
+            'document' => new CURLFile($tmp, 'text/plain', $filename)
+        ));
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 20);
+        $res = curl_exec($ch);
+        curl_close($ch);
+        @unlink($tmp);
+
+        $json = json_decode($res, true);
+        return is_array($json) ? $json : array('ok' => false, 'description' => 'Invalid response');
+    }
+
     public function setWebhook($url, $secret_token = null)
     {
         $payload = array('url' => $url);
@@ -112,6 +154,46 @@ class MikhmonTelegramBot
     public function getWebhookInfo()
     {
         return $this->apiCall('getWebhookInfo');
+    }
+
+    /**
+     * Register the command list so the Telegram client palette ("/") shows
+     * every available command. Old aliases (/tagihan, /lunas, ...) stay
+     * functional but are not listed, keeping the palette tidy.
+     */
+    public function syncCommands()
+    {
+        $hs = MikhmonHotspotBilling::getHotspotConfig($this->config);
+        $commands = array(
+            array('command' => 'help', 'description' => 'Panduan lengkap bot'),
+            array('command' => 'pptagihan', 'description' => 'Status tagihan semua pelanggan PPPoE'),
+            array('command' => 'pplunas', 'description' => 'Tandai pelanggan lunas bulan ini'),
+            array('command' => 'ppisolir', 'description' => 'Isolir pelanggan menunggak'),
+            array('command' => 'ppcek', 'description' => 'Cek detail pelanggan & koneksi'),
+            array('command' => 'reminder', 'description' => 'Susun pesan reminder tenggang/isolir'),
+        );
+        if ($hs['enabled']) {
+            array_splice($commands, 5, 0, array(
+                array('command' => 'hs', 'description' => 'Panduan modul voucher hotspot'),
+                array('command' => 'hscek', 'description' => 'Detail voucher hotspot'),
+                array('command' => 'hslist', 'description' => 'Rekap voucher per profil'),
+                array('command' => 'hsonline', 'description' => 'Daftar sesi hotspot aktif'),
+                array('command' => 'hskick', 'description' => 'Putus sesi voucher aktif'),
+                array('command' => 'hsreset', 'description' => 'Reset counter pemakaian voucher'),
+            ));
+            // Owner-only commands last, marked in the description.
+            array_push($commands,
+                array('command' => 'hsgen', 'description' => '(Owner) Generate voucher baru'),
+                array('command' => 'hsdel', 'description' => '(Owner) Hapus voucher'),
+                array('command' => 'ppadd', 'description' => '(Owner) Tambah pelanggan PPPoE'),
+                array('command' => 'ppprof', 'description' => '(Owner) Ganti paket pelanggan'),
+                array('command' => 'pppass', 'description' => '(Owner) Reset password pelanggan'),
+                array('command' => 'ppdel', 'description' => '(Owner) Hapus pelanggan PPPoE'),
+                array('command' => 'settemplate', 'description' => '(Owner) Atur template reminder'),
+                array('command' => 'broadcast', 'description' => '(Owner) Pengumuman ke semua chat')
+            );
+        }
+        return $this->apiCall('setMyCommands', array('commands' => $commands));
     }
 
     /* ==========================================================
@@ -224,6 +306,7 @@ class MikhmonTelegramBot
         $parts = preg_split('/\s+/', $text);
         $cmd = strtolower(explode('@', substr($parts[0], 1))[0]);
         $arg = trim($parts[1] ?? '');
+        $args = array_slice($parts, 1);
 
         switch ($cmd) {
             case 'start':
@@ -232,20 +315,86 @@ class MikhmonTelegramBot
                 $this->cmdHelp($chat_id, $tg_id);
                 break;
 
-            case 'tagihan':
+            case 'pptagihan':
+            case 'tagihan':          // alias lama
                 $this->cmdTagihan($chat_id, $tg_id);
                 break;
 
-            case 'lunas':
+            case 'pplunas':
+            case 'lunas':            // alias lama
                 $this->cmdLunas($chat_id, $tg_id, $arg, $sender_name);
                 break;
 
-            case 'isolir':
+            case 'ppisolir':
+            case 'isolir':           // alias lama
                 $this->cmdIsolir($chat_id, $tg_id, $arg, $sender_name);
                 break;
 
-            case 'cek':
+            case 'ppcek':
+            case 'cek':              // alias lama
                 $this->cmdCek($chat_id, $tg_id, $arg);
+                break;
+
+            /* Hotspot voucher commands (/hs*) */
+            case 'hs':
+                $this->cmdHsHelp($chat_id, $tg_id);
+                break;
+
+            case 'hscek':
+                $this->cmdHsCek($chat_id, $tg_id, $arg);
+                break;
+
+            case 'hsonline':
+                $this->cmdHsOnline($chat_id, $tg_id);
+                break;
+
+            case 'hslist':
+                $this->cmdHsList($chat_id, $tg_id, $arg);
+                break;
+
+            case 'hskick':
+                $this->cmdHsKick($chat_id, $tg_id, $arg, $sender_name);
+                break;
+
+            case 'hsreset':
+                $this->cmdHsReset($chat_id, $tg_id, $arg, $sender_name);
+                break;
+
+            case 'hsgen':
+                $this->cmdHsGen($chat_id, $tg_id, $args, $sender_name);
+                break;
+
+            case 'hsdel':
+                $this->cmdHsDel($chat_id, $tg_id, $arg);
+                break;
+
+            /* PPPoE customer management + messaging (/pp*, /reminder, ...) */
+            case 'ppadd':
+                $this->cmdPpAdd($chat_id, $tg_id, $args);
+                break;
+
+            case 'ppprof':
+                $this->cmdPpProf($chat_id, $tg_id, $args);
+                break;
+
+            case 'pppass':
+                $this->cmdPpPass($chat_id, $tg_id, $args);
+                break;
+
+            case 'ppdel':
+                $this->cmdPpDel($chat_id, $tg_id, $arg);
+                break;
+
+            case 'reminder':
+                $this->cmdReminder($chat_id, $tg_id, $args);
+                break;
+
+            case 'broadcast':
+                $this->cmdBroadcast($chat_id, $tg_id, implode(' ', $args));
+                break;
+
+            case 'settemplate':
+                $this->cmdSetTemplate($chat_id, $tg_id, $args);
                 break;
 
             default:
@@ -256,18 +405,37 @@ class MikhmonTelegramBot
 
     private function cmdHelp($chat_id, $tg_id)
     {
-        $html = "<b>🤖 Bot Administrasi Tagihan PPPoE</b>\n\n";
-        $html .= "<b>Perintah Utama:</b>\n";
-        $html .= "• /tagihan — Ringkasan & status semua pelanggan\n";
-        $html .= "• /lunas <code>[user]</code> — Tandai lunas bulan ini & pulihkan paket\n";
-        $html .= "• /isolir <code>[user]</code> — Alihkan ke profil isolir\n";
-        $html .= "• /cek <code>[user]</code> — Cek detail pelanggan & koneksi\n";
-        $html .= "• /help — Tampilkan bantuan ini\n\n";
-        $html .= "<b>Status Tagihan:</b>\n";
-        $html .= "✅ <b>AKTIF</b> — Sudah dibayar bulan ini\n";
-        $html .= "🟡 <b>TENGGANG</b> — Belum bayar, belum jatuh tempo\n";
-        $html .= "🔴 <b>ISOLIR</b> — Lewat jatuh tempo / isolir aktif\n";
-        $html .= "⚪ <b>TANPA PAKET</b> — Metadata paket belum ada\n";
+        $html = "<b>🤖 Bot Administrasi PPPoE &amp; Hotspot</b>\n";
+        $html .= "━━━━━━━━━━━━━━━━━━━\n";
+        $html .= "<i>Tips: kirim perintah tanpa argumen untuk memilih via tombol.</i>\n\n";
+
+        $html .= "<b>📡 PPPoE</b>\n";
+        $html .= "/pptagihan — Status tagihan semua pelanggan\n";
+        $html .= "/pplunas <code>[user]</code> — Tandai lunas &amp; pulihkan paket\n";
+        $html .= "/ppisolir <code>[user]</code> — Isolir pelanggan menunggak\n";
+        $html .= "/ppcek <code>[user]</code> — Detail pelanggan &amp; koneksi\n\n";
+
+        if (MikhmonHotspotBilling::getHotspotConfig($this->config)['enabled']) {
+            $html .= "<b>🎫 Voucher Hotspot</b>\n";
+            $html .= "/hscek <code>[kode]</code> — Detail voucher &amp; status online\n";
+            $html .= "/hslist <code>[profil]</code> — Rekap voucher per profil\n";
+            $html .= "/hsonline — Sesi aktif + tombol putus sesi\n";
+            $html .= "/hskick <code>[kode]</code> — Putus sesi aktif\n";
+            $html .= "/hsreset <code>[kode]</code> — Reset counter pemakaian\n";
+            $html .= "/hsgen · /hsdel <code>[kode]</code> — <i>owner</i>\n\n";
+        }
+
+        $html .= "<b>👤 Kelola Pelanggan &amp; Pesan</b> — <i>owner</i>\n";
+        $html .= "/ppadd <code>[user]</code> — Tambah pelanggan (paket via tombol)\n";
+        $html .= "/ppprof — Ganti paket (pilih pelanggan → paket)\n";
+        $html .= "/pppass — Reset password (pilih pelanggan)\n";
+        $html .= "/ppdel — Hapus pelanggan (pilih pelanggan)\n";
+        $html .= "/reminder — Susun pesan reminder (pilih kategori)\n";
+        $html .= "/settemplate — Atur template reminder\n";
+        $html .= "/broadcast <code>[pesan]</code> — Pengumuman ke semua chat\n\n";
+
+        $html .= "Panduan lengkap: /help\n\n";
+        $html .= "<i>Status: ✅ Aktif · 🟡 Tenggang · 🔴 Isolir</i>";
 
         $this->sendMessage($chat_id, $html);
     }
@@ -532,6 +700,16 @@ class MikhmonTelegramBot
         $chat_id = $cb['message']['chat']['id'] ?? '';
         $msg_id = $cb['message']['message_id'] ?? '';
         $data = $cb['data'] ?? '';
+
+        // Hotspot routes (hs…:) come first — their prefix cannot collide
+        // with the PPPoE namespaces below.
+        if ($this->handleHotspotCallback($cb_id, $tg_id, $sender_name, $chat_id, $msg_id, $data)) {
+            return;
+        }
+
+        if ($this->handlePppCallback($cb_id, $tg_id, $sender_name, $chat_id, $msg_id, $data)) {
+            return;
+        }
 
         if ($data === 'batal') {
             $this->answerCallback($cb_id, 'Dibatalkan');

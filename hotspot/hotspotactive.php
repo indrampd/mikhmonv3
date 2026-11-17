@@ -81,20 +81,36 @@ if (!isset($_SESSION["mikhmon"])) {
 				?>			</h3>
         </div>
          <div class="card-body overflow">
-<table id="tFilter" class="table table-bordered table-hover text-nowrap">
+<style>
+/* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
+   (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
+   ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
+#dataTable tbody tr.row-data { display: none; }
+</style>
+<noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
+<div style="margin-bottom:8px;">
+  <input id="tableSearch" type="text" class="form-control" placeholder="Search.." style="max-width:300px;">
+</div>
+<!-- Bulk bar: muncul saat ada checkbox terpilih -->
+<div id="bulkBar" style="display:none; margin:8px 0; padding:8px 10px; border:1px dashed rgba(128,128,128,.35); border-radius:4px; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;">
+  <strong id="bulkCount">0</strong>&nbsp;terpilih:
+  <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('kick')"><i class="fa fa-plug"></i> Kick / Putuskan</button>
+</div>
+<table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
   <tr>
-    <th></th>
-    <th>Server</th>
-    <th>User</th>
-    <th>Address</th>
-    <th>Mac Address</th>
-    <th class="text-right">Uptime</th>
-    <th class="text-right">Bytes In</th>
-    <th class="text-right">Bytes Out</th>
-    <th class="text-right">Time Left</th>
-    <th>Login By</th>
-    <th><?= $_comment ?></th>
+    <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
+    <th style="width:50px; text-align:center;"></th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> User</th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Mac Address</th>
+    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Uptime</th>
+    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Bytes In</th>
+    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Bytes Out</th>
+    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Time Left</th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Login By</th>
+    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
   </tr>
   </thead>
   <tbody>
@@ -113,10 +129,11 @@ for ($i = 0; $i < $TotalReg; $i++) {
 	$loginby = $hotspotactive['login-by'];
 	$comment = $hotspotactive['comment'];
 	$uriprocess = "'./?remove-user-active=" . $id . "&session=" . $session . "'";
-	echo "<tr>";
+	echo "<tr class='row-data'>";
+	echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($user, ENT_QUOTES) . "'></td>";
 	echo "<td style='text-align:center;'><span class='pointer'  title='Remove " . $user . "' onclick=loadpage(".$uriprocess.")><i class='fa fa-minus-square text-danger'></i></span></td>";
 	echo "<td><a  title='filter " . $server . "' href='./?hotspot=active&server=" . $server . "&session=" . $session . "'><i class='fa fa-server'></i> " . $server . "</a></td>";
-	echo "<td><a title='Open User " . $user . "' href=./?hotspot-user=" . $user . "&session=" . $session . "><i class='fa fa-edit'></i> " . $user . "</a></td>";
+	echo "<td><a title='Open User " . htmlspecialchars($user, ENT_QUOTES) . "' href='./?hotspot-user=" . urlencode($user) . "&session=" . $session . "'><i class='fa fa-edit'></i> " . $user . "</a></td>";
 	echo "<td>" . $address . "</td>";
 	echo "<td>" . $mac . "</td>";
 	echo "<td style='text-align:right;'>" . $uptime . "</td>";
@@ -130,8 +147,27 @@ for ($i = 0; $i < $TotalReg; $i++) {
 ?>
   </tbody>
 </table>
+
+<!-- Footer pagination -->
+<div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
+  <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+    <span id="pageInfo">&nbsp;</span>
+    <select id="perPageSel" class="form-control" style="width:auto; padding:2px 6px; font-size:12px;" title="Rows per page">
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="200">200</option>
+      <option value="500">500</option>
+    </select>
+  </div>
+  <div id="pagePager" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
 </div>
 </div>
 </div>
 </div>
 </div>
+
+<script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
+<script>
+initTableView(100);
+initBulkUI('hs-active');
+</script>

@@ -97,7 +97,7 @@ if (!isset($_SESSION["mikhmon"])) {
    <div class="col-6 pd-t-5 pd-b-5">
   <div class="input-group">
     <div class="input-group-4 col-box-4">
-      <input id="filterTable" type="text" style="padding:5.8px;" class="group-item group-item-l" placeholder="<?= $_search ?>">
+      <input id="tableSearch" type="text" style="padding:5.8px;" class="group-item group-item-l" placeholder="<?= $_search ?>">
     </div>
     <div class="input-group-4 col-box-4">
       <select style="padding:5px;" class="group-item group-item-m" onchange="location = this.value; loader()" title="Filter by Profile">
@@ -171,10 +171,20 @@ if (!isset($_SESSION["mikhmon"])) {
   <button class="btn bg-primary" title='Print Small'onclick="printV('small','yes');"><i class="fa fa-print"></i> <?= $_print_small ?></button>
   </div>
 </div>
+
+<!-- Bulk bar: muncul saat ada checkbox terpilih -->
+<div id="bulkBar" style="display:none; margin:8px 0 0; padding:8px 10px; border:1px dashed rgba(128,128,128,.35); border-radius:4px; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;">
+  <strong id="bulkCount">0</strong>&nbsp;selected:
+  <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('enable')"><i class="fa fa-unlock"></i> Enable</button>
+  <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('disable')"><i class="fa fa-lock"></i> Disable</button>
+  <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
+</div>
+
 <div class="overflow mr-t-10 box-bordered" style="max-height: 75vh">
 <table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
   <tr>
+    <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
     <th style="min-width:50px;" class="align-middle text-center" id="cuser"><?= $counttuser; ?></th>
     <th style="min-width:50px;" class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
     <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_name ?></th>
@@ -216,9 +226,13 @@ for ($i = 0; $i < $TotalReg; $i++) {
     $udatalimit = ' ' . formatBytes($udatalimit, 2);
   }
 
-  echo "<tr>";
+  echo "<tr class='row-data'>";
   ?>
-  <td style='text-align:center;'>  <i class='fa fa-minus-square text-danger pointer' onclick="if(confirm('Are you sure to delete username (<?= $uname; ?>)?')){loadpage('./?remove-hotspot-user=<?= $uid; ?>&session=<?= $session; ?>')}else{}" title='Remove <?= $uname; ?>'></i>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
+  <td style='text-align:center;'>
+  <input type='checkbox' class='row-check' data-id='<?= $uid; ?>' data-name='<?= htmlspecialchars($uname, ENT_QUOTES); ?>'>
+  </td>
+  <td style='text-align:center;'>
+  <i class='fa fa-minus-square text-danger pointer' onclick="if(confirm('Are you sure to delete username (<?= $uname; ?>)?')){loadpage('./?remove-hotspot-user=<?= $uid; ?>&session=<?= $session; ?>')}else{}" title='Remove <?= $uname; ?>'></i>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
   <?php
   if ($udisabled == "true") {
     $uriprocess = "'./?enable-hotspot-user=" . $uid . "&session=" . $session."'";
@@ -242,28 +256,49 @@ for ($i = 0; $i < $TotalReg; $i++) {
   echo "<td style=' text-align:right'>" . $uuptime . "</td>";
   echo "<td style=' text-align:right'>" . $ubytesi . "</td>";
   echo "<td style=' text-align:right'>" . $ubyteso . "</td>";
-  echo "<td>";
+  // Ellipsis + title: komentar panjang tidak membuat tabel melebar melewati
+  // kontainer (penyebab scrollbar horizontal menimpa baris terakhir).
+  echo "<td style='max-width:300px; overflow:hidden; text-overflow:ellipsis;' title=\"" . htmlspecialchars($ucomment . $udatalimit . $utimelimit, ENT_QUOTES) . "\">";
   if ($uname == "default-trial") {
   } else if (substr($ucomment,0,3) == "vc-" || substr($ucomment,0,3) == "up-") {
-    echo "<a href=./?hotspot=users&comment=" . $ucomment . "&session=" . $session . " title='Filter by " . $ucomment . "'><i class='fa fa-search'></i> ". $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
+    echo "<a href=\"./?hotspot=users&comment=" . urlencode($ucomment) . "&session=" . $session . "\" title='Filter by " . htmlspecialchars($ucomment, ENT_QUOTES) . "'><i class='fa fa-search'></i> ". $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
   } else if ($utimelimit == ' expired') {
-    echo "<a href=./?hotspot=users&profile=all&exp=1&session=" . $session . " title='Filter by expired'><i class='fa fa-search'></i> " . $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
+    echo "<a href=\"./?hotspot=users&profile=all&exp=1&session=" . $session . "\" title='Filter by expired'><i class='fa fa-search'></i> " . $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
   }else{
     echo $ucomment.' ';
   }
   echo  "</td>";
-
+  echo "</tr>";
 
 }
 ?>
-  </tr>
   </tbody>
 </table>
+</div>
+
+<!-- Footer pagination -->
+<div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
+  <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+    <span id="pageInfo">&nbsp;</span>
+    <select id="perPageSel" class="form-control" style="width:auto; padding:2px 6px; font-size:12px;" title="Rows per page">
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="200">200</option>
+      <option value="500">500</option>
+    </select>
+  </div>
+  <div id="pagePager" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+</div>
 </div>
 </div>
 </div>
 </div>
 </div>
 
-	
+<script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
+<script>
+// Bulk (checkbox) + Filter + pagination client-side
+initTableView(100);
+initBulkUI('hotspot');
+</script>
 	
