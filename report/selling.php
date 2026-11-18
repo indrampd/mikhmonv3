@@ -308,7 +308,7 @@ $(document).ready(function(){
 					var D = document.getElementById('D').value;
 					var M = document.getElementById('M').value;
 					var Y = document.getElementById('Y').value;
-					var X = document.getElementById('filterTable').value;
+					var X = (document.getElementById('tableSearch') || {}).value || '';
 
 					if(D !== ""){
 						window.location='./?report=selling&idhr='+M+'/'+D+'/'+Y+'&prefix='+X+'&session=<?= $session; ?>';
