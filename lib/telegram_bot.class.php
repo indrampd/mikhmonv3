@@ -45,11 +45,17 @@ class MikhmonTelegramBot
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json'));
         // Jangan biarkan satu panggilan menggantung lama di halaman dashboard:
         // gagal cepat lebih baik daripada badge status berubah jadi "Nonaktif".
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 15);
         $res = curl_exec($ch);
+        $err = curl_error($ch);
+        $errno = curl_errno($ch);
         curl_close($ch);
 
+        if ($res === false) {
+            return array('ok' => false, 'description' => 'cURL error (' . $errno . '): ' . $err);
+        }
         $json = json_decode($res, true);
         return is_array($json) ? $json : array('ok' => false, 'description' => 'Invalid response');
     }
@@ -79,6 +85,23 @@ class MikhmonTelegramBot
             $payload['reply_markup'] = $reply_markup;
         }
         return $this->apiCall('editMessageText', $payload);
+    }
+
+    /**
+     * Remove/update the inline keyboard without touching the message text.
+     * Used by the "Tutup" button so result screens keep their content but
+     * stop being interactive.
+     */
+    public function editMessageReplyMarkup($chat_id, $message_id, $reply_markup = null)
+    {
+        $payload = array(
+            'chat_id' => $chat_id,
+            'message_id' => $message_id
+        );
+        if ($reply_markup !== null) {
+            $payload['reply_markup'] = $reply_markup;
+        }
+        return $this->apiCall('editMessageReplyMarkup', $payload);
     }
 
     public function answerCallback($callback_id, $text = '', $show_alert = false)
@@ -113,12 +136,18 @@ class MikhmonTelegramBot
             'document' => new CURLFile($tmp, 'text/plain', $filename)
         ));
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
         curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 5);
         curl_setopt($ch, CURLOPT_TIMEOUT, 20);
         $res = curl_exec($ch);
+        $err = curl_error($ch);
+        $errno = curl_errno($ch);
         curl_close($ch);
         @unlink($tmp);
 
+        if ($res === false) {
+            return array('ok' => false, 'description' => 'cURL error (' . $errno . '): ' . $err);
+        }
         $json = json_decode($res, true);
         return is_array($json) ? $json : array('ok' => false, 'description' => 'Invalid response');
     }
@@ -157,9 +186,8 @@ class MikhmonTelegramBot
     }
 
     /**
-     * Register the command list so the Telegram client palette ("/") shows
-     * every available command. Old aliases (/tagihan, /lunas, ...) stay
-     * functional but are not listed, keeping the palette tidy.
+     * Register the streamlined command list so the Telegram client palette ("/")
+     * shows only active operational commands.
      */
     public function syncCommands()
     {
@@ -174,23 +202,12 @@ class MikhmonTelegramBot
         );
         if ($hs['enabled']) {
             array_splice($commands, 5, 0, array(
-                array('command' => 'hs', 'description' => 'Panduan modul voucher hotspot'),
-                array('command' => 'hscek', 'description' => 'Detail voucher hotspot'),
-                array('command' => 'hslist', 'description' => 'Rekap voucher per profil'),
+                array('command' => 'hscek', 'description' => 'Cek voucher online & yang pernah dipakai'),
+                array('command' => 'hslist', 'description' => 'Daftar semua voucher (berhalaman)'),
                 array('command' => 'hsonline', 'description' => 'Daftar sesi hotspot aktif'),
-                array('command' => 'hskick', 'description' => 'Putus sesi voucher aktif'),
-                array('command' => 'hsreset', 'description' => 'Reset counter pemakaian voucher'),
             ));
-            // Owner-only commands last, marked in the description.
             array_push($commands,
-                array('command' => 'hsgen', 'description' => '(Owner) Generate voucher baru'),
-                array('command' => 'hsdel', 'description' => '(Owner) Hapus voucher'),
-                array('command' => 'ppadd', 'description' => '(Owner) Tambah pelanggan PPPoE'),
-                array('command' => 'ppprof', 'description' => '(Owner) Ganti paket pelanggan'),
-                array('command' => 'pppass', 'description' => '(Owner) Reset password pelanggan'),
-                array('command' => 'ppdel', 'description' => '(Owner) Hapus pelanggan PPPoE'),
-                array('command' => 'settemplate', 'description' => '(Owner) Atur template reminder'),
-                array('command' => 'broadcast', 'description' => '(Owner) Pengumuman ke semua chat')
+                array('command' => 'hsgen', 'description' => '(Owner) Generate voucher baru')
             );
         }
         return $this->apiCall('setMyCommands', array('commands' => $commands));
@@ -316,30 +333,22 @@ class MikhmonTelegramBot
                 break;
 
             case 'pptagihan':
-            case 'tagihan':          // alias lama
                 $this->cmdTagihan($chat_id, $tg_id);
                 break;
 
             case 'pplunas':
-            case 'lunas':            // alias lama
                 $this->cmdLunas($chat_id, $tg_id, $arg, $sender_name);
                 break;
 
             case 'ppisolir':
-            case 'isolir':           // alias lama
                 $this->cmdIsolir($chat_id, $tg_id, $arg, $sender_name);
                 break;
 
             case 'ppcek':
-            case 'cek':              // alias lama
                 $this->cmdCek($chat_id, $tg_id, $arg);
                 break;
 
             /* Hotspot voucher commands (/hs*) */
-            case 'hs':
-                $this->cmdHsHelp($chat_id, $tg_id);
-                break;
-
             case 'hscek':
                 $this->cmdHsCek($chat_id, $tg_id, $arg);
                 break;
@@ -349,52 +358,15 @@ class MikhmonTelegramBot
                 break;
 
             case 'hslist':
-                $this->cmdHsList($chat_id, $tg_id, $arg);
-                break;
-
-            case 'hskick':
-                $this->cmdHsKick($chat_id, $tg_id, $arg, $sender_name);
-                break;
-
-            case 'hsreset':
-                $this->cmdHsReset($chat_id, $tg_id, $arg, $sender_name);
+                $this->cmdHsList($chat_id, $tg_id, $arg, null, 'hslist');
                 break;
 
             case 'hsgen':
                 $this->cmdHsGen($chat_id, $tg_id, $args, $sender_name);
                 break;
 
-            case 'hsdel':
-                $this->cmdHsDel($chat_id, $tg_id, $arg);
-                break;
-
-            /* PPPoE customer management + messaging (/pp*, /reminder, ...) */
-            case 'ppadd':
-                $this->cmdPpAdd($chat_id, $tg_id, $args);
-                break;
-
-            case 'ppprof':
-                $this->cmdPpProf($chat_id, $tg_id, $args);
-                break;
-
-            case 'pppass':
-                $this->cmdPpPass($chat_id, $tg_id, $args);
-                break;
-
-            case 'ppdel':
-                $this->cmdPpDel($chat_id, $tg_id, $arg);
-                break;
-
             case 'reminder':
                 $this->cmdReminder($chat_id, $tg_id, $args);
-                break;
-
-            case 'broadcast':
-                $this->cmdBroadcast($chat_id, $tg_id, implode(' ', $args));
-                break;
-
-            case 'settemplate':
-                $this->cmdSetTemplate($chat_id, $tg_id, $args);
                 break;
 
             default:
@@ -413,28 +385,17 @@ class MikhmonTelegramBot
         $html .= "/pptagihan — Status tagihan semua pelanggan\n";
         $html .= "/pplunas <code>[user]</code> — Tandai lunas &amp; pulihkan paket\n";
         $html .= "/ppisolir <code>[user]</code> — Isolir pelanggan menunggak\n";
-        $html .= "/ppcek <code>[user]</code> — Detail pelanggan &amp; koneksi\n\n";
+        $html .= "/ppcek <code>[user]</code> — Detail pelanggan &amp; koneksi\n";
+        $html .= "/reminder — Susun pesan reminder (pilih kategori)\n\n";
 
         if (MikhmonHotspotBilling::getHotspotConfig($this->config)['enabled']) {
             $html .= "<b>🎫 Voucher Hotspot</b>\n";
-            $html .= "/hscek <code>[kode]</code> — Detail voucher &amp; status online\n";
-            $html .= "/hslist <code>[profil]</code> — Rekap voucher per profil\n";
+            $html .= "/hscek <code>[kode]</code> — Voucher online &amp; yang pernah dipakai (tombol Kick/Reset/Hapus)\n";
+            $html .= "/hslist <code>[profil]</code> — Daftar semua voucher (berhalaman)\n";
             $html .= "/hsonline — Sesi aktif + tombol putus sesi\n";
-            $html .= "/hskick <code>[kode]</code> — Putus sesi aktif\n";
-            $html .= "/hsreset <code>[kode]</code> — Reset counter pemakaian\n";
-            $html .= "/hsgen · /hsdel <code>[kode]</code> — <i>owner</i>\n\n";
+            $html .= "/hsgen — Generate voucher baru (<i>owner</i>)\n\n";
         }
 
-        $html .= "<b>👤 Kelola Pelanggan &amp; Pesan</b> — <i>owner</i>\n";
-        $html .= "/ppadd <code>[user]</code> — Tambah pelanggan (paket via tombol)\n";
-        $html .= "/ppprof — Ganti paket (pilih pelanggan → paket)\n";
-        $html .= "/pppass — Reset password (pilih pelanggan)\n";
-        $html .= "/ppdel — Hapus pelanggan (pilih pelanggan)\n";
-        $html .= "/reminder — Susun pesan reminder (pilih kategori)\n";
-        $html .= "/settemplate — Atur template reminder\n";
-        $html .= "/broadcast <code>[pesan]</code> — Pengumuman ke semua chat\n\n";
-
-        $html .= "Panduan lengkap: /help\n\n";
         $html .= "<i>Status: ✅ Aktif · 🟡 Tenggang · 🔴 Isolir</i>";
 
         $this->sendMessage($chat_id, $html);
@@ -500,6 +461,9 @@ class MikhmonTelegramBot
             array(
                 array('text' => "✅ Lunas ({$counts['lunas']})", 'callback_data' => 'list:lunas'),
                 array('text' => "🔄 Refresh", 'callback_data' => 'refresh_tagihan')
+            ),
+            array(
+                array('text' => '❌ Tutup', 'callback_data' => 'tutup')
             )
         );
 
@@ -520,7 +484,9 @@ class MikhmonTelegramBot
         }
 
         if (empty($user)) {
-            $this->showPickUser($chat_id, 'lunas', 'Pilih pelanggan yang akan ditandai LUNAS:');
+            // Hanya pelanggan yang belum lunas — yang sudah lunas tidak perlu
+            // ditandai lagi.
+            $this->showPickUser($chat_id, 'lunas', 'Pilih pelanggan yang akan ditandai LUNAS:', null, array('lunas'));
             return;
         }
 
@@ -553,7 +519,8 @@ class MikhmonTelegramBot
         }
 
         if (empty($user)) {
-            $this->showPickUser($chat_id, 'isolir', 'Pilih pelanggan yang akan di-ISOLIR:');
+            // Pelanggan yang sudah terisolir tidak perlu diisolir lagi.
+            $this->showPickUser($chat_id, 'isolir', 'Pilih pelanggan yang akan di-ISOLIR:', null, array('isolir'));
             return;
         }
 
@@ -577,7 +544,7 @@ class MikhmonTelegramBot
         }
     }
 
-    private function cmdCek($chat_id, $tg_id, $user, $msg_id = null)
+    private function cmdCek($chat_id, $tg_id, $user, $msg_id = null, $backCb = 'pickcek')
     {
         if (empty($user)) {
             // Same click-through list as /lunas and /isolir: typing a name is
@@ -633,7 +600,7 @@ class MikhmonTelegramBot
                 array('text' => '🔴 Isolir', 'callback_data' => "isolir:{$resolved}")
             ),
             array(
-                array('text' => '↩️ Kembali ke daftar', 'callback_data' => 'pickcek')
+                array('text' => '↩️ Kembali ke daftar', 'callback_data' => $backCb)
             )
         );
         $reply_markup = array('inline_keyboard' => $btns);
@@ -645,7 +612,12 @@ class MikhmonTelegramBot
         }
     }
 
-    private function showPickUser($chat_id, $action, $title, $msg_id = null)
+    /**
+     * Customer picker shared by /ppcek, /pplunas, /ppisolir and the owner
+     * actions. $exclude drops statuses that make no sense for the command
+     * (e.g. /pplunas skips customers who are already lunas).
+     */
+    private function showPickUser($chat_id, $action, $title, $msg_id = null, $exclude = array())
     {
         $api = $this->getRouterAPI();
         if (!$api) {
@@ -658,7 +630,12 @@ class MikhmonTelegramBot
 
         $keyboard = array();
         $row = array();
+        $count = 0;
         foreach ($secrets as $s) {
+            if (!empty($exclude)) {
+                $stat = MikhmonBilling::getStatus($s['profile'] ?? '', $s['comment'] ?? '');
+                if (in_array($stat['code'], $exclude, true)) continue;
+            }
             $name = $s['name'] ?? '';
             $comm = $s['comment'] ?? '';
             $parsed = MikhmonBilling::parseComment($comm);
@@ -668,6 +645,7 @@ class MikhmonTelegramBot
                 'text' => $lbl,
                 'callback_data' => "{$action}:{$name}"
             );
+            $count++;
             if (count($row) === 2) {
                 $keyboard[] = $row;
                 $row = array();
@@ -681,10 +659,15 @@ class MikhmonTelegramBot
             array('text' => '❌ Batal', 'callback_data' => 'batal')
         );
 
+        $text = "<b>{$title}</b>";
+        if ($count === 0) {
+            $text .= "\n\n<i>Tidak ada pelanggan pada daftar ini.</i>";
+        }
+
         if (!empty($msg_id)) {
-            $this->editMessageText($chat_id, $msg_id, "<b>{$title}</b>", array('inline_keyboard' => $keyboard));
+            $this->editMessageText($chat_id, $msg_id, $text, array('inline_keyboard' => $keyboard));
         } else {
-            $this->sendMessage($chat_id, "<b>{$title}</b>", array('inline_keyboard' => $keyboard));
+            $this->sendMessage($chat_id, $text, array('inline_keyboard' => $keyboard));
         }
     }
 
@@ -717,6 +700,15 @@ class MikhmonTelegramBot
             return;
         }
 
+        // Close an interactive message while keeping its result text.
+        if ($data === 'tutup') {
+            $this->answerCallback($cb_id, 'Ditutup');
+            if (!empty($msg_id)) {
+                $this->editMessageReplyMarkup($chat_id, $msg_id);
+            }
+            return;
+        }
+
         if ($data === 'refresh_tagihan') {
             $this->answerCallback($cb_id, 'Memperbarui data...');
             $this->cmdTagihan($chat_id, $tg_id, $msg_id);
@@ -743,7 +735,14 @@ class MikhmonTelegramBot
         }
 
         if (str_starts_with($data, 'lunas:')) {
-            $user = substr($data, 6);
+            $rest = substr($data, 6);
+            $user = $rest;
+            $backCb = 'pickcek';
+            $sep = strpos($rest, '|');
+            if ($sep !== false) {
+                $user = substr($rest, 0, $sep);
+                $backCb = 'list:' . substr($rest, $sep + 1);
+            }
             if (!$this->isAuthorized($tg_id, $chat_id, 'lunas')) {
                 $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
                 return;
@@ -760,7 +759,7 @@ class MikhmonTelegramBot
 
             if ($res['success']) {
                 $this->answerCallback($cb_id, "✅ {$user} ditandai LUNAS!", false);
-                $this->cmdCek($chat_id, $tg_id, $user, $msg_id);
+                $this->cmdCek($chat_id, $tg_id, $user, $msg_id, $backCb);
             } else {
                 $this->answerCallback($cb_id, $res['message'], true);
             }
@@ -768,7 +767,14 @@ class MikhmonTelegramBot
         }
 
         if (str_starts_with($data, 'isolir:')) {
-            $user = substr($data, 7);
+            $rest = substr($data, 7);
+            $user = $rest;
+            $backCb = 'pickcek';
+            $sep = strpos($rest, '|');
+            if ($sep !== false) {
+                $user = substr($rest, 0, $sep);
+                $backCb = 'list:' . substr($rest, $sep + 1);
+            }
             if (!$this->isAuthorized($tg_id, $chat_id, 'isolir')) {
                 $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
                 return;
@@ -785,7 +791,7 @@ class MikhmonTelegramBot
 
             if ($res['success']) {
                 $this->answerCallback($cb_id, "🔴 {$user} berhasil diisolir!", false);
-                $this->cmdCek($chat_id, $tg_id, $user, $msg_id);
+                $this->cmdCek($chat_id, $tg_id, $user, $msg_id, $backCb);
             } else {
                 $this->answerCallback($cb_id, $res['message'], true);
             }
@@ -839,9 +845,12 @@ class MikhmonTelegramBot
         $keyboard = array();
         $row = array();
         foreach ($matched as $item) {
+            // Carry the category so the detail screen can return to this exact
+            // list after the action, instead of the general customer picker.
+            $act = ($category === 'lunas' ? 'isolir' : 'lunas');
             $row[] = array(
                 'text' => $item['label'],
-                'callback_data' => ($category === 'lunas' ? "isolir:{$item['name']}" : "lunas:{$item['name']}")
+                'callback_data' => $act . ':' . $item['name'] . '|' . $category
             );
             if (count($row) === 2) {
                 $keyboard[] = $row;

@@ -209,6 +209,21 @@ class MikhmonHotspotBilling
     }
 
     /**
+     * True when the voucher has ever been used (uptime or traffic recorded).
+     * Used by /hscek, which lists online vouchers plus offline ones that were
+     * already redeemed — not untouched stock.
+     */
+    public static function isUsed($user)
+    {
+        $uptime = self::parseDuration($user['uptime'] ?? '');
+        if ($uptime !== null && $uptime > 0) {
+            return true;
+        }
+        $bytes = ((float)($user['bytes-in'] ?? 0)) + ((float)($user['bytes-out'] ?? 0));
+        return $bytes > 0;
+    }
+
+    /**
      * MM/DD/YY or M.D.Y to unix timestamp. 2-digit years roll to 20xx.
      */
     private static function commentDateToTs($date)
@@ -328,7 +343,8 @@ class MikhmonHotspotBilling
             $rows[] = array(
                 'name' => $u['name'] ?? '',
                 'profile' => $u['profile'] ?? '',
-                'status' => $stat
+                'status' => $stat,
+                'used' => ($stat['code'] === 'active') || self::isUsed($u)
             );
         }
         return array('counts' => $counts, 'users' => $rows, 'profiles' => self::listProfiles($API));

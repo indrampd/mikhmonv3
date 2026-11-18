@@ -57,16 +57,7 @@ if (!isset($_SESSION["mikhmon"])) {
 			}
 		} elseif (strlen($idbl) > "0") {
 			if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-				$API->write('/system/script/print', false);
-				$API->write('?owner=' . $idbl . '', false);
-				$API->write('=.proplist=.id');
-				$ARREMD = $API->read();
-				for ($i = 0; $i < count($ARREMD); $i++) {
-					$API->write('/system/script/remove', false);
-					$API->write('=.id=' . $ARREMD[$i]['.id']);
-					$READ = $API->read();
-
-				}
+				mikhmon_remove_scripts_by_month($API, $idbl);
 			}
 
 		}
@@ -90,9 +81,7 @@ if (!isset($_SESSION["mikhmon"])) {
 		$shd = "inline-block";
 	} elseif (strlen($idbl) > "0") {
 		if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-			$getData = $API->comm("/system/script/print", array(
-				"?owner" => "$idbl",
-			));
+			$getData = mikhmon_scripts_by_month($API, $idbl);
 			$TotalReg = count($getData);
 		}
 		$filedownload = $idbl;
@@ -108,16 +97,6 @@ if (!isset($_SESSION["mikhmon"])) {
 		$filedownload = "all";
 		$shf = "text";
 		$shd = "none";
-	} elseif (strlen($idbl) > "0" ) {
-		if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-			$getData = $API->comm("/system/script/print", array(
-				"?owner" => "$idbl",
-			));
-			$TotalReg = count($getData);
-		}
-		$filedownload = $idbl;
-		$shf = "hidden";
-		$shd = "inline-block";
 	}
 	
 }
@@ -142,19 +121,46 @@ if (!isset($_SESSION["mikhmon"])) {
 			  downloadLink.click();
 			  }
 			  
-			  function exportTableToCSV(filename) {
-			    var csv = [];
-			    var rows = document.querySelectorAll("#dataTable tr");
-			    
-			   for (var i = 0; i < rows.length; i++) {
-			      var row = [], cols = rows[i].querySelectorAll("td, th");
-			   for (var j = 0; j < cols.length; j++)
-            row.push(cols[j].innerText);
-        csv.push(row.join(","));
-        }
-        // Download CSV file
-        downloadCSV(csv.join("\n"), filename);
-        }
+		function getSellingSelectedRows() {
+			var all = window.SELLING_DATA || [];
+			var sel = window._bulkSelected;
+			if (!sel || !sel.size) return [];
+			var out = [];
+			for (var i = 0; i < all.length; i++) {
+				if (sel.has(all[i].id)) out.push(all[i]);
+			}
+			return out;
+		}
+		function exportTableToCSV(filename, selectedOnly) {
+			var rows = selectedOnly ? getSellingSelectedRows() : (window.SELLING_DATA || []);
+			if (!rows.length) return;
+			var csv = ['No,Date,Time,Username,Profile,Comment,Price'];
+			for (var i = 0; i < rows.length; i++) {
+				var r = rows[i];
+				csv.push([i + 1, r.tgl, r.time, r.user, r.prof, r.comm, r.price].join(','));
+			}
+			downloadCSV(csv.join("\n"), filename);
+		}
+		function printSellingReport(queryStr, selectedOnly) {
+			var url = './report/print.php?' + queryStr;
+			var sel = window._bulkSelected;
+			if (!selectedOnly || !sel || !sel.size) {
+				window.open(url, '_blank');
+				return;
+			}
+			var form = document.createElement('form');
+			form.method = 'POST';
+			form.action = url;
+			form.target = '_blank';
+			var inp = document.createElement('input');
+			inp.type = 'hidden';
+			inp.name = 'selected_ids';
+			inp.value = JSON.stringify(Array.from(sel.keys()));
+			form.appendChild(inp);
+			document.body.appendChild(form);
+			form.submit();
+			document.body.removeChild(form);
+		}
 
 // https://stackoverflow.com/questions/33218607/use-inline-css-to-apply-usd-currency-format-within-html-table
 function number_format(number, decimals, dec_point, thousands_sep) {
@@ -186,38 +192,22 @@ function number_format(number, decimals, dec_point, thousands_sep) {
   return s.join(dec);
 }
         
-		window.onload=function() {
-          var sum = 0;
-          var dataTable = document.getElementById("selling");
-          
-          // use querySelector to find all second table cells
-          var cells = document.querySelectorAll("td + td + td + td + td + td");
-          for (var i = 0; i < cells.length; i++)
-          sum+=parseFloat(cells[i].firstChild.data);
-          
-          var th = document.getElementById('total');
-    <?php if ($currency == in_array($currency, $cekindo['indo'])) {
-      echo 'th.innerHTML = "'.$currency.' " + number_format(th.innerHTML + (sum),"","",".") ;';
-		} else {
-			echo 'th.innerHTML = "'.$currency.' " + number_format(th.innerHTML + (sum),2,".",",") ;';
-		} ?>
-		
-		var tables = document.getElementsByTagName('tbody');
-    var table = tables[tables.length -1];
-    var rows = table.rows;
-    for(var i = 0, td; i < rows.length; i++){
-        td = document.createElement('td');
-        td.appendChild(document.createTextNode(i + 1));
-        rows[i].insertBefore(td, rows[i].firstChild);
-    }
-        }
+		function formatSellingTotal(sum) {
+			var th = document.getElementById('total');
+			if (!th) return;
+			<?php if ($currency == in_array($currency, $cekindo['indo'])) {
+				echo 'th.innerHTML = "' . $currency . ' " + number_format(sum, "", "", ".");';
+			} else {
+				echo 'th.innerHTML = "' . $currency . ' " + number_format(sum, 2, ".", ",");';
+			} ?>
+		}
 		</script>
 
 <script>
 $(document).ready(function(){
   $("#openResume").click(function(){
     notify("Calculating data");
-    window.location = "./?report=resume-report&idbl=<?= $idbl;?>&session=<?= $session;?>"
+    window.location = "./?report=resume-report&idbl=<?= $idbl;?>&session=<?= $session;?>";
   });
 });
 </script>
@@ -232,15 +222,14 @@ $(document).ready(function(){
 	<div class="row">
 	<div class="col-12">
 		<div style="padding-bottom: 5px; padding-top: 5px;">
-		  <input id="filterTable" type="text" class="form-control" style="float:left; margin-top: 6px; max-width: 150px;" placeholder="<?= $_search ?>">&nbsp;
+		  <input id="tableSearch" type="text" class="form-control" style="float:left; margin-top: 6px; max-width: 150px;" placeholder="<?= $_search ?>">&nbsp;
 		  <button name="help" class="btn bg-primary" onclick="location.href='#help';" title="Help"><i class="fa fa-question"></i> <?= $_help ?></button>
-		  <button class="btn bg-primary" onclick="exportTableToCSV('report-mikhmon-<?= $filedownload . $fprefix; ?>.csv')" title="Download selling report"><i class="fa fa-download"></i> CSV</button>
+		  <button class="btn bg-primary" onclick="exportTableToCSV('report-mikhmon-<?= $filedownload . $fprefix; ?>.csv', false)" title="Download selling report"><i class="fa fa-download"></i> CSV</button>
 			<button class="btn bg-primary" onclick="location.href='./?report=selling&session=<?= $session; ?>';" title="Reload all data"><i class="fa fa-search"></i> <?= $_all ?></button>
 			<?php if(!empty($idbl)){echo '<button name="resume" id="openResume" class="btn bg-primary"title="Resume Report"><i class="fa fa-area-chart"></i> '.$_resume.'</button>';}else{
 				echo '<a class="btn bg-primary" href="./?report=selling&idbl='.$idbl2.'&session='.$session.'" title="Show '.ucfirst(substr($idbl2,0,3).' '.substr($idbl2,3,5)).'"><i class="fa fa-search"></i> '.ucfirst(substr($idbl2,0,3).' '.substr($idbl2,3,5)).'</a>';}?>
-		  <button name="print" class="btn bg-primary" onclick="window.open('./report/print.php?<?= explode("?report=selling&",$url)[1] ?>','_blank');" title="Print"><i class="fa fa-print"></i> <?= $_print ?></button>
+		  <button name="print" class="btn bg-primary" onclick="printSellingReport(<?= htmlspecialchars(json_encode(explode("?report=selling&", $url)[1] ?? ''), ENT_QUOTES); ?>, false);" title="Print"><i class="fa fa-print"></i> <?= $_print ?></button>
 		  <button style="display: <?= $shd; ?>;" name="remdata" class="btn bg-danger" onclick="location.href='#remdata';" title="Delete Data <?= $filedownload; ?>"><i class="fa fa-trash"></i> <?= $_delete_data.' '. $filedownload; ?></button>
-		  <button  id="remSelected" style="display: none;" class="btn bg-red" onclick="MikhmonRemoveReportSelected()"><i class="fa fa-trash"></i> <span id="selected"></span> <?= $_selected ?></button>
 		</div>
 	</div>
 	</div>
@@ -330,100 +319,116 @@ $(document).ready(function(){
 				}
 			</script>
 		</div>
+		  <!-- Bulk bar: muncul saat ada checkbox terpilih -->
+		  <div id="bulkBar" style="display:none; margin:8px 0; padding:8px 10px; border:1px dashed rgba(128,128,128,.35); border-radius:4px; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;">
+		    <strong id="bulkCount">0</strong>&nbsp;selected:
+		    <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="exportTableToCSV('report-mikhmon-selected-<?= $filedownload . $fprefix; ?>.csv', true)"><i class="fa fa-download"></i> CSV</button>
+		    <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="printSellingReport(<?= htmlspecialchars(json_encode(explode("?report=selling&", $url)[1] ?? ''), ENT_QUOTES); ?>, true)"><i class="fa fa-print"></i> Cetak</button>
+		    <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
+		  </div>
 		  <div class="overflow box-bordered" style="max-height: 70vh">
 			<table id="dataTable" class="table table-bordered table-hover text-nowrap">
 				<thead class="thead-light">
 				<tr>
-				  <th colspan=5 ><?= $_selling_report ?> <?= $filedownload . $fprefix; ?><b style="font-size:0;">,,,,</b></th>
+				  <th colspan=6 ><?= $_selling_report ?> <?= $filedownload . $fprefix; ?><b style="font-size:0;">,,,,</b></th>
 				  <th style="text-align:right;"><?= $_total ?></th>
 				  <th style="text-align:right;" id="total"></th>
 				</tr>
 				<tr>
+				  <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
 				  <th >&#8470;</th>
-					<th ><?= $_date ?></th>
-					<th ><?= $_time ?></th>
-					<th ><?= $_user_name ?></th>
-					<th ><?= $_profile ?></th>
-					<th ><?= $_comment ?></th>
-					<th style="text-align:right;"> <?= $_price ?></th>
+					<th class="pointer" data-sort="tgl" title="Click to sort"><i class="fa fa-sort"></i> <?= $_date ?></th>
+					<th class="pointer" data-sort="time" title="Click to sort"><i class="fa fa-sort"></i> <?= $_time ?></th>
+					<th class="pointer" data-sort="user" title="Click to sort"><i class="fa fa-sort"></i> <?= $_user_name ?></th>
+					<th class="pointer" data-sort="prof" title="Click to sort"><i class="fa fa-sort"></i> <?= $_profile ?></th>
+					<th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
+					<th class="pointer" data-sort="price" style="text-align:right;" title="Click to sort"><i class="fa fa-sort"></i> <?= $_price ?></th>
 				</tr>
 				</thead>
-				<tbody>
-				<?php
-			if ($prefix != "") {
-				for ($i = 0; $i < $TotalReg; $i++) {
-					$getname = explode("-|-", $getData[$i]['name']);
-					if (substr($getname[2], 0, strlen($prefix)) == $prefix) {
-						echo "<tr>";
-						echo "<td>";
-						$tgl = $getname[0];
-						echo $tgl;
-						echo "</td>";
-						echo "<td>";
-						$ltime = $getname[1];
-						echo $ltime;
-						echo "</td>";
-						echo "<td>";
-						$username = $getname[2];
-						echo $username;
-						echo "</td>";
-						echo "<td>";
-						$profile = $getname[7];
-						echo $profile;
-						echo "</td>";
-						echo "<td>";
-						$comment = $getname[8];
-						echo $comment;
-						echo "</td>";
-						echo "<td style='text-align:right;'>";
-						$price = $getname[3];
-						echo $price;
-						echo "</td>";
-						echo "</tr>";
-					}
-				}
-			} else {
-				for ($i = 0; $i < $TotalReg; $i++) {
-					$getname = explode("-|-", $getData[$i]['name']);
-					echo "<tr>";
-					echo "<td>";
-					$tgl = $getname[0];
-					echo $tgl;
-					echo "</td>";
-					echo "<td>";
-					$ltime = $getname[1];
-					echo $ltime;
-					echo "</td>";
-					echo "<td>";
-					$username = $getname[2];
-					echo $username;
-					echo "</td>";
-					echo "<td>";
-					$profile = $getname[7];
-					echo $profile;
-					echo "</td>";
-					echo "<td>";
-					$comment = $getname[8];
-					echo $comment;
-					echo "</td>";
-					echo "<td style='text-align:right;'>";
-					$price = $getname[3];
-					echo $price;
-					echo "</td>";
-					echo "</tr>";
-				
-				$dataresume .= $getname[0].$getname[3];
-				$totalresume += $getname[3];
-				$_SESSION['dataresume'] = $dataresume;
-				$_SESSION['totalresume'] = $TotalReg.'/'.$totalresume;
-				}
-					
-			}
-
-			?>
-			</tbody>
+				<tbody id="tbody"></tbody>
 			</table>
 		</div>
+		<?php
+		$rowsData = array();
+		$dataresume = '';
+		$totalresume = 0;
+		$no = 0;
+		for ($i = 0; $i < $TotalReg; $i++) {
+			$getname = explode("-|-", $getData[$i]['name'] ?? '');
+			$uname = $getname[2] ?? '';
+			if ($prefix != "" && substr($uname, 0, strlen($prefix)) != $prefix) {
+				continue;
+			}
+			$no++;
+			$tgl = $getname[0] ?? '';
+			$ltime = $getname[1] ?? '';
+			$price = $getname[3] ?? '0';
+			$profile = $getname[7] ?? '';
+			$comment = $getname[8] ?? '';
+			$rowsData[] = array(
+				'id' => $getData[$i]['.id'] ?? '',
+				'no' => $no,
+				'tgl' => $tgl,
+				'time' => $ltime,
+				'user' => $uname,
+				'prof' => $profile,
+				'comm' => $comment,
+				'price' => $price,
+			);
+			if ($prefix == "") {
+				$dataresume .= $tgl . $price;
+				$totalresume += (float)$price;
+			}
+		}
+		if ($prefix == "") {
+			$_SESSION['dataresume'] = $dataresume;
+			$_SESSION['totalresume'] = $TotalReg . '/' . $totalresume;
+		}
+		?>
+		<!-- Footer pagination -->
+		<div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
+		  <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+		    <span id="pageInfo">&nbsp;</span>
+		    <select id="perPageSel" class="form-control" style="width:auto; padding:2px 6px; font-size:12px;" title="Rows per page">
+		      <option value="50">50</option>
+		      <option value="100" selected>100</option>
+		      <option value="200">200</option>
+		      <option value="500">500</option>
+		    </select>
+		  </div>
+		  <div id="pagePager" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+		</div>
+		<script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
+		<script>
+		window.SELLING_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+		(function() {
+			var sum = 0;
+			for (var i = 0; i < window.SELLING_DATA.length; i++) {
+				var p = parseFloat(window.SELLING_DATA[i].price);
+				if (!isNaN(p)) sum += p;
+			}
+			formatSellingTotal(sum);
+		})();
+		initBulkUI('selling', { virtual: true });
+		initVirtualTableView({
+			data: window.SELLING_DATA,
+			defaultPerPage: 100,
+			searchCols: ['tgl', 'time', 'user', 'prof', 'comm', 'price'],
+			renderRow: function(r, checked) {
+				var id = tvEsc(r.id), user = tvEsc(r.user);
+				return '<tr class="row-data">' +
+					'<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + user + '"' + (checked ? ' checked' : '') + '></td>' +
+					'<td>' + r.no + '</td>' +
+					'<td>' + tvEsc(r.tgl) + '</td>' +
+					'<td>' + tvEsc(r.time) + '</td>' +
+					'<td>' + user + '</td>' +
+					'<td>' + tvEsc(r.prof) + '</td>' +
+					'<td>' + tvEsc(r.comm) + '</td>' +
+					'<td style="text-align:right;">' + tvEsc(r.price) + '</td>' +
+					'</tr>';
+			}
+		});
+		</script>
 </div>
 </div>
 </div>

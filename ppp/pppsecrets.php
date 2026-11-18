@@ -151,150 +151,52 @@ $TotalReg = count($filtered_users);
     <tr>
       <th style="width:30px; text-align:center;" title="Pilih semua di halaman ini"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
       <th style="width:70px; text-align:center;">Aksi</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Nama</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Layanan</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Caller ID</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Profil</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> IP</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Terakhir Keluar</th>
-      <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
-      <th class="pointer text-center" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
+      <th class="pointer" data-sort="name" title="Click to sort"><i class="fa fa-sort"></i> Nama</th>
+      <th class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Layanan</th>
+      <th class="pointer" data-sort="caller" title="Click to sort"><i class="fa fa-sort"></i> Caller ID</th>
+      <th class="pointer" data-sort="prof" title="Click to sort"><i class="fa fa-sort"></i> Profil</th>
+      <th class="pointer" data-sort="ip" title="Click to sort"><i class="fa fa-sort"></i> IP</th>
+      <th class="pointer" data-sort="lastout" title="Click to sort"><i class="fa fa-sort"></i> Terakhir Keluar</th>
+      <th class="pointer" data-sort="label" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
+      <th class="pointer text-center" data-sort="slabel" title="Click to sort" style="width:125px;"><i class="fa fa-sort"></i> Tagihan</th>
       <th class="text-center" style="width:165px;">Aksi Cepat</th>
     </tr>
     </thead>
-    <tbody id="tbody">
-    <?php
-    if ($TotalReg === 0) {
-        echo "<tr><td colspan='11' class='text-center pd-15 text-muted'><i class='fa fa-info-circle'></i> Tidak ada data secret PPPoE ditemukan.</td></tr>";
-    }
-
-    for ($i = 0; $i < $TotalReg; $i++) {
-        $userdetails = $filtered_users[$i];
-        $uid = $userdetails['.id'];
-        $uname = $userdetails['name'];
-        $upass = $userdetails['password'] ?? '';
-        $uprofile = $userdetails['profile'] ?? 'default';
-        $uservice = $userdetails['service'] ?? 'pppoe';
-        $ucaller = $userdetails['caller-id'] ?? '';
-        $ulastout = $userdetails['last-logged-out'] ?? '';
-        $uremote = $userdetails['remote-address'] ?? '';
-        $ucomment = $userdetails['comment'] ?? '';
-        $udisabled = ($userdetails['disabled'] === 'true');
-        $is_online = isset($active_map[$uname]);
-        $uip = ($is_online && !empty($active_map[$uname]['address'])) ? $active_map[$uname]['address'] : $uremote;
-
-        // Tagihan parsing
-        $stat = MikhmonBilling::getStatus($uprofile, $ucomment);
-        $parsed = MikhmonBilling::parseComment($ucomment);
-        $is_isolir = ($stat['code'] === 'isolir' || $uprofile === 'pppoe-ISOLIR');
-
-        echo "<tr class='row-data' id='row-user-" . htmlspecialchars($uname) . "' data-user='" . htmlspecialchars($uname) . "'>";
-
-        // Col 1: checkbox bulk
-        echo "<td style='text-align:center;'>";
-        echo "<input type='checkbox' class='row-check' data-id=\"" . htmlspecialchars($uid) . "\" data-name=\"" . htmlspecialchars($uname) . "\">";
-        echo "</td>";
-
-        // Col 2: Action (Lock / Delete)
-        echo "<td style='text-align:center;'>";
-        echo "<i class='fa fa-minus-square text-danger pointer' onclick=\"if(confirm('Yakin ingin menghapus user (' + " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . " + ')?')){loadpage('./?remove-pppsecret=" . urlencode($uid) . "&session=" . $session . "');loader();}\" title='Hapus " . htmlspecialchars($uname) . "'></i>&nbsp;&nbsp;&nbsp;&nbsp;";
-        if ($udisabled) {
-            $uriprocess = "'./?enable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
-            echo '<span class="text-warning pointer" title="Enable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-lock"></i></span></td>';
-        } else {
-            $uriprocess = "'./?disable-pppsecret=" . urlencode($uid) . "&session=" . $session . "'";
-            echo '<span class="pointer" title="Disable User ' . htmlspecialchars($uname) . '" onclick="loadpage(' . $uriprocess . ');loader();"><i class="fa fa-unlock"></i></span></td>';
-        }
-
-        // Col 3: Nama + badge Online inline (pola referensi: status menempel di nama)
-        echo "<td>";
-        echo "<a title='Open User " . htmlspecialchars($uname) . "' href='./?secret=" . urlencode($uname) . "&session=" . $session . "'>";
-        echo "<i class='fa fa-edit'></i> " . htmlspecialchars($uname);
-        echo "</a>";
-        if ($is_online) {
-            echo " <span class='badge bg-success radius-3' style='font-size:11px; margin-left:6px;'><i class='fa fa-circle' style='font-size:9px;'></i> Online</span>";
-        }
-        echo "</td>";
-
-        // Col 4: Layanan
-        echo "<td>" . htmlspecialchars($uservice) . "</td>";
-
-        // Col 5: Caller ID (MAC perangkat klien)
-        echo "<td>";
-        if ($ucaller !== '') {
-            echo htmlspecialchars($ucaller);
-        } else {
-            echo "<span class='text-muted'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 6: Profil (dengan paket asal bila sedang isolir)
-        echo "<td>";
-        echo "<a id='prof-label-" . htmlspecialchars($uname) . "' href='./?ppp=secrets&profile=" . urlencode($uprofile) . "&session=" . $session . "'>";
-        echo htmlspecialchars($uprofile);
-        echo "</a>";
-        if ($is_isolir && !empty($parsed['pkg']) && $parsed['pkg'] !== $uprofile) {
-            echo " <small class='text-muted' title='Paket Asli'>(" . htmlspecialchars($parsed['pkg']) . ")</small>";
-        }
-        echo "</td>";
-
-        // Col 7: IP sesi aktif, fallback remote-address statis
-        echo "<td>";
-        if ($uip !== '') {
-            echo htmlspecialchars($uip);
-        } else {
-            echo "<span class='text-muted'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 8: Terakhir Keluar
-        echo "<td>";
-        if ($ulastout !== '') {
-            echo "<small class='text-muted'>" . htmlspecialchars($ulastout) . "</small>";
-        } else {
-            echo "<span class='text-muted'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 9: Comment / Pelanggan
-        echo "<td>";
-        if (!empty($parsed['label'])) {
-            echo htmlspecialchars($parsed['label']);
-        } else {
-            echo "<span class='text-muted'>&mdash;</span>";
-        }
-        echo "</td>";
-
-        // Col 10: Status Tagihan (1 row inline: dot status + label + dot + Tahun-Bulan)
-        $tagihan_dot = ($stat['code'] === 'lunas') ? 'text-green' : (($stat['code'] === 'tenggang') ? 'text-yellow' : 'text-danger');
-        echo "<td class='text-center' id='badge-tagihan-" . htmlspecialchars($uname) . "'>";
-        echo "<i class='fa fa-circle " . $tagihan_dot . "' style='font-size:10px;' title='" . htmlspecialchars($stat['hint']) . "'></i> ";
-        echo htmlspecialchars($stat['label']);
-        if (!empty($parsed['lunas'])) {
-            echo " <span class='text-muted' style='font-size:11.5px;'>• " . htmlspecialchars($parsed['lunas']) . "</span>";
-        }
-        echo "</td>";
-
-        // Col 11: Aksi Cepat (2 tombol aksi saja: Lunas + Isolir/Pulih)
-        echo "<td class='text-center'>";
-        echo "<div style='display:inline-flex; gap:4px; align-items:center;'>";
-        // Button Lunas
-        echo "<button type='button' class='btn bg-success radius-3 pd-2 pointer' title='Tandai Lunas Bulan Ini' onclick=\"quickBillingAction('lunas', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-check'></i> Lunas</button>";
-        // Button Isolir / Pulih
-        if ($is_isolir) {
-            echo "<button type='button' class='btn bg-warning radius-3 pd-2 pointer' title='Pulihkan Paket Asal' onclick=\"quickBillingAction('pulih', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-refresh'></i> Pulih</button>";
-        } else {
-            echo "<button type='button' class='btn bg-danger radius-3 pd-2 pointer' title='Isolir Pelanggan' onclick=\"quickBillingAction('isolir', " . htmlspecialchars(json_encode($uname), ENT_QUOTES, 'UTF-8') . ")\"><i class='fa fa-ban'></i> Isolir</button>";
-        }
-        echo "</div>";
-        echo "</td>";
-
-        echo "</tr>";
-    }
-    ?>
-    </tbody>
+    <tbody id="tbody"></tbody>
   </table>
   </div>
+  <?php
+  $rowsData = array();
+  for ($i = 0; $i < $TotalReg; $i++) {
+      $userdetails = $filtered_users[$i];
+      $uname = $userdetails['name'] ?? '';
+      $uprofile = $userdetails['profile'] ?? 'default';
+      $ucomment = $userdetails['comment'] ?? '';
+      $is_online = isset($active_map[$uname]);
+      $uip = ($is_online && !empty($active_map[$uname]['address'])) ? $active_map[$uname]['address'] : ($userdetails['remote-address'] ?? '');
+      $stat = MikhmonBilling::getStatus($uprofile, $ucomment);
+      $parsed = MikhmonBilling::parseComment($ucomment);
+      $is_isolir = ($stat['code'] === 'isolir' || $uprofile === 'pppoe-ISOLIR');
+      $rowsData[] = array(
+          'id' => $userdetails['.id'] ?? '',
+          'name' => $uname,
+          'srv' => $userdetails['service'] ?? 'pppoe',
+          'caller' => $userdetails['caller-id'] ?? '',
+          'prof' => $uprofile,
+          'orig' => ($is_isolir && !empty($parsed['pkg']) && $parsed['pkg'] !== $uprofile) ? $parsed['pkg'] : '',
+          'ip' => $uip,
+          'lastout' => $userdetails['last-logged-out'] ?? '',
+          'label' => $parsed['label'] ?? '',
+          'dis' => (($userdetails['disabled'] ?? '') === 'true') ? 1 : 0,
+          'online' => $is_online ? 1 : 0,
+          'isolir' => $is_isolir ? 1 : 0,
+          'scode' => $stat['code'],
+          'slabel' => $stat['label'],
+          'shint' => $stat['hint'],
+          'lunas' => $parsed['lunas'] ?? '',
+      );
+  }
+  ?>
 
   <!-- Footer pagination -->
   <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -362,9 +264,46 @@ function showToast(msg) {
     }
 }
 
-// Bulk (checkbox) + Filter + pagination client-side
-initTableView(100);
-initBulkUI('ppp');
+// Bulk (checkbox) + Filter + pagination virtual (hanya render halaman aktif)
+var PPP_SECRETS_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var PPP_SESSION = <?= json_encode($session); ?>;
+initBulkUI('ppp', { virtual: true });
+initVirtualTableView({
+  data: PPP_SECRETS_DATA,
+  defaultPerPage: 100,
+  searchCols: ['name', 'srv', 'caller', 'prof', 'orig', 'ip', 'label', 'slabel', 'lunas'],
+  renderRow: function(u, checked) {
+    var uid = tvEsc(u.id), uname = tvEsc(u.name), prof = tvEsc(u.prof);
+    var sessEnc = encodeURIComponent(PPP_SESSION);
+    var uEnc = encodeURIComponent(u.name);
+    var idEnc = encodeURIComponent(u.id);
+    var toggleBtn = u.dis
+      ? '<span class="text-warning pointer" title="Enable User ' + uname + '" onclick="loadpage(\'./?enable-pppsecret=' + idEnc + '&session=' + sessEnc + '\');loader();"><i class="fa fa-lock"></i></span>'
+      : '<span class="pointer" title="Disable User ' + uname + '" onclick="loadpage(\'./?disable-pppsecret=' + idEnc + '&session=' + sessEnc + '\');loader();"><i class="fa fa-unlock"></i></span>';
+    var onlineBadge = u.online ? ' <span class="badge bg-success radius-3" style="font-size:11px; margin-left:6px;"><i class="fa fa-circle" style="font-size:9px;"></i> Online</span>' : '';
+    var origHtml = u.orig ? ' <small class="text-muted" title="Paket Asli">(' + tvEsc(u.orig) + ')</small>' : '';
+    var dash = '<span class="text-muted">&mdash;</span>';
+    var dotCls = u.scode === 'lunas' ? 'text-green' : (u.scode === 'tenggang' ? 'text-yellow' : 'text-danger');
+    var lunasHtml = u.lunas ? ' <span class="text-muted" style="font-size:11.5px;">&bull; ' + tvEsc(u.lunas) + '</span>' : '';
+    var jsUser = tvEsc(JSON.stringify(u.name));
+    var isoBtn = u.isolir
+      ? '<button type="button" class="btn bg-warning radius-3 pd-2 pointer" title="Pulihkan Paket Asal" onclick="quickBillingAction(\'pulih\', ' + jsUser + ')"><i class="fa fa-refresh"></i> Pulih</button>'
+      : '<button type="button" class="btn bg-danger radius-3 pd-2 pointer" title="Isolir Pelanggan" onclick="quickBillingAction(\'isolir\', ' + jsUser + ')"><i class="fa fa-ban"></i> Isolir</button>';
+    return '<tr class="row-data" id="row-user-' + uname + '" data-user="' + uname + '">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + uid + '" data-name="' + uname + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><i class="fa fa-minus-square text-danger pointer" onclick="if(confirm(\'Yakin ingin menghapus user (' + uname + ')?\')){loadpage(\'./?remove-pppsecret=' + idEnc + '&session=' + sessEnc + '\');loader();}" title="Hapus ' + uname + '"></i>&nbsp;&nbsp;&nbsp;&nbsp;' + toggleBtn + '</td>' +
+      '<td><a title="Open User ' + uname + '" href="./?secret=' + uEnc + '&session=' + sessEnc + '"><i class="fa fa-edit"></i> ' + uname + '</a>' + onlineBadge + '</td>' +
+      '<td>' + tvEsc(u.srv) + '</td>' +
+      '<td>' + (u.caller ? tvEsc(u.caller) : dash) + '</td>' +
+      '<td><a id="prof-label-' + uname + '" href="./?ppp=secrets&profile=' + encodeURIComponent(u.prof) + '&session=' + sessEnc + '">' + prof + '</a>' + origHtml + '</td>' +
+      '<td>' + (u.ip ? tvEsc(u.ip) : dash) + '</td>' +
+      '<td>' + (u.lastout ? '<small class="text-muted">' + tvEsc(u.lastout) + '</small>' : dash) + '</td>' +
+      '<td>' + (u.label ? tvEsc(u.label) : dash) + '</td>' +
+      '<td class="text-center" id="badge-tagihan-' + uname + '"><i class="fa fa-circle ' + dotCls + '" style="font-size:10px;" title="' + tvEsc(u.shint) + '"></i> ' + tvEsc(u.slabel) + lunasHtml + '</td>' +
+      '<td class="text-center"><div style="display:inline-flex; gap:4px; align-items:center;"><button type="button" class="btn bg-success radius-3 pd-2 pointer" title="Tandai Lunas Bulan Ini" onclick="quickBillingAction(\'lunas\', ' + jsUser + ')"><i class="fa fa-check"></i> Lunas</button>' + isoBtn + '</div></td>' +
+      '</tr>';
+  }
+});
 
 // Server-Sent Events (SSE) Live Updates
 (function initSSE() {

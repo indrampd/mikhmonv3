@@ -55,66 +55,41 @@ if ($countlease < 2) {
   <strong id="bulkCount">0</strong>&nbsp;selected:
   <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
 </div>
-<style>
-/* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
-   (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
-   ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
-#dataTable tbody tr.row-data { display: none; }
-</style>
-<noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
 <div class="overflow box-bordered mr-t-10" style="max-height: 75vh">   	   
 <table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
   <tr>
   	<th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
   	<th style="width:50px; text-align:center;"></th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Active Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Active MAC Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Active Host Name</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Status</th>
+    <th class="pointer" data-sort="addr" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
+    <th class="pointer" data-sort="mac" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
+    <th class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
+    <th class="pointer" data-sort="aaddr" title="Click to sort"><i class="fa fa-sort"></i> Active Address</th>
+    <th class="pointer" data-sort="amac" title="Click to sort"><i class="fa fa-sort"></i> Active MAC Address</th>
+    <th class="pointer" data-sort="host" title="Click to sort"><i class="fa fa-sort"></i> Active Host Name</th>
+    <th class="pointer" data-sort="stat" title="Click to sort"><i class="fa fa-sort"></i> Status</th>
   </tr>
   </thead>
-  <tbody> 
-<?php
-for ($i = 0; $i < $TotalReg; $i++) {
-	$lease = $getlease[$i];
-	$id = $lease['.id'];
-
-
-	$addr = $lease['address'];
-	$maca = $lease['mac-address'];
-	$server = $lease['server'];
-	$aaddr = $lease['active-address'];
-	$amaca = $lease['active-mac-address'];
-	$ahostname = $lease['host-name'];
-	$status = $lease['status'];
-
-
-	echo "<tr class='row-data'>";
-	echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($addr, ENT_QUOTES) . "'></td>";
-	echo "<td style='text-align:center;'>";
-	if ($lease['dynamic'] == "true") {
-		echo "<b title='D - dynamic'>D</b>";
-	} else {
-		echo "<b title='S - static'>S</b>";
-	}
-	echo "</td>";
-	echo "<td>" . $addr . "</td>";
-	echo "<td>" . $maca . "</td>";
-	echo "<td>" . $server . "</td>";
-	echo "<td>" . $aaddr . "</td>";
-	echo "<td>" . $amaca . "</td>";
-	echo "<td>" . $ahostname . "</td>";
-	echo "<td>" . $status . "</td>";
-	echo "</tr>";
-}
-?>
-  </tbody>
+  <tbody id="tbody"></tbody>
 </table>
 </div>
+<?php
+$rowsData = array();
+for ($i = 0; $i < $TotalReg; $i++) {
+	$lease = $getlease[$i];
+	$rowsData[] = array(
+		'id' => $lease['.id'] ?? '',
+		'dyn' => (($lease['dynamic'] ?? '') == 'true') ? 'D' : 'S',
+		'addr' => $lease['address'] ?? '',
+		'mac' => $lease['mac-address'] ?? '',
+		'srv' => $lease['server'] ?? '',
+		'aaddr' => $lease['active-address'] ?? '',
+		'amac' => $lease['active-mac-address'] ?? '',
+		'host' => $lease['host-name'] ?? '',
+		'stat' => $lease['status'] ?? '',
+	);
+}
+?>
 
 <!-- Footer pagination -->
 <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -136,6 +111,26 @@ for ($i = 0; $i < $TotalReg; $i++) {
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-initTableView(100);
-initBulkUI('dhcp-lease');
+var DHCP_LEASE_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+initBulkUI('dhcp-lease', { virtual: true });
+initVirtualTableView({
+  data: DHCP_LEASE_DATA,
+  defaultPerPage: 100,
+  searchCols: ['dyn', 'addr', 'mac', 'srv', 'aaddr', 'amac', 'host', 'stat'],
+  renderRow: function(l, checked) {
+    var id = tvEsc(l.id), addr = tvEsc(l.addr);
+    var dTitle = l.dyn === 'D' ? 'D - dynamic' : 'S - static';
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + addr + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><b title="' + dTitle + '">' + l.dyn + '</b></td>' +
+      '<td>' + addr + '</td>' +
+      '<td>' + tvEsc(l.mac) + '</td>' +
+      '<td>' + tvEsc(l.srv) + '</td>' +
+      '<td>' + tvEsc(l.aaddr) + '</td>' +
+      '<td>' + tvEsc(l.amac) + '</td>' +
+      '<td>' + tvEsc(l.host) + '</td>' +
+      '<td>' + tvEsc(l.stat) + '</td>' +
+      '</tr>';
+  }
+});
 </script>

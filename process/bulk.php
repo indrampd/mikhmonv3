@@ -57,6 +57,25 @@ $commands = array(
     'dhcp-lease' => array(
         'remove' => '/ip/dhcp-server/lease/remove',
     ),
+    'ip-binding' => array(
+        'enable'  => '/ip/hotspot/ip-binding/enable',
+        'disable' => '/ip/hotspot/ip-binding/disable',
+        'remove'  => '/ip/hotspot/ip-binding/remove',
+    ),
+    'scheduler' => array(
+        'enable'  => '/system/scheduler/enable',
+        'disable' => '/system/scheduler/disable',
+        'remove'  => '/system/scheduler/remove',
+    ),
+    'hs-profile' => array(
+        'remove' => '/ip/hotspot/user/profile/remove',
+    ),
+    'ppp-profile' => array(
+        'remove' => '/ppp/profile/remove',
+    ),
+    'selling' => array(
+        'remove' => '/system/script/remove',
+    ),
 );
 
 // Perintah tunggal RouterOS yang aman dipanggil per .id

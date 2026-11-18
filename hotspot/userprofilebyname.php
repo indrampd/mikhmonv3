@@ -137,7 +137,10 @@ if (!isset($_SESSION["mikhmon"])) {
 
     $parent = ($_POST['parent']);
 
-    $record = '; :local mac $"mac-address"; :local time [/system clock get time ]; /system script add name="$date-|-$time-|-$user-|-'.$price.'-|-$address-|-$mac-|-' . $validity . '-|-'.$name.'-|-$comment" owner="$month$year" source="$date" comment="mikhmon"';
+    // Record scripts must keep the legacy "mmm/dd/yyyy" date (used by the
+    // selling/live reports). RouterOS 7 returns the clock date as
+    // "yyyy-mm-dd", so normalise it here.
+    $record = '; :local mac $"mac-address"; :local time [/system clock get time ]; :local rdate $date; :local month ""; :if ([:typeof $ysep] = "num") do={ :local mstr "janfebmaraprmayjunjulaugsepoctnovdec"; :local midx ([:tonum [:pick $date 5 7]] - 1); :set month [:pick $mstr ($midx * 3) (($midx * 3) + 3)]; :set rdate ($month . "/" . [:pick $date 8 10] . "/" . [:pick $date 0 4]); } else={ :set month [:pick $date 0 3]; }; /system script add name="$rdate-|-$time-|-$user-|-'.$price.'-|-$address-|-$mac-|-' . $validity . '-|-'.$name.'-|-$comment" source="$rdate" comment="mikhmon"';
     
     $onlogin = ':put (",'.$expmode.',' . $price . ',' . $validity . ','.$sprice.',,' . $getlock . ',"); {:local comment [ /ip hotspot user get [/ip hotspot user find where name="$user"] comment]; :local ucode [:pic $comment 0 2]; :if ($ucode = "vc" or $ucode = "up" or $comment = "") do={ :local date [ /system clock get date ];:local ysep [:find $date "-"];:local year "";:if ([:typeof $ysep] = "num") do={:set year [:pick $date 0 4];} else={:set year [:pick $date 7 11];}; /sys sch add name="$user" disable=no start-date=$date interval="' . $validity . '"; :delay 5s; :local exp [ /sys sch get [ /sys sch find where name="$user" ] next-run]; :local getxp [len $exp]; :if ($getxp = 15) do={ :local d [:pic $exp 0 6]; :local t [:pic $exp 7 16]; :local s ("/"); :local exp ("$d$s$year $t"); /ip hotspot user set comment="$exp" [find where name="$user"];}; :if ($getxp = 8) do={ /ip hotspot user set comment="$date $exp" [find where name="$user"];}; :if ($getxp > 15) do={ /ip hotspot user set comment="$exp" [find where name="$user"];};:delay 5s; /sys sch remove [find where name="$user"]';
     

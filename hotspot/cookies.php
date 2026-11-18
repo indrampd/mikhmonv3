@@ -55,50 +55,34 @@ if ($countcookies < 2) {
   <strong id="bulkCount">0</strong>&nbsp;selected:
   <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
 </div>
-<style>
-/* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
-   (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
-   ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
-#dataTable tbody tr.row-data { display: none; }
-</style>
-<noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
 <div class="overflow box-bordered mr-t-10" style="max-height: 75vh">   	   
 <table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
   <tr>
   	<th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
   	<th style="width:50px; text-align:center;"></th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> User</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Domain</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Expires In</th>
+    <th class="pointer" data-sort="user" title="Click to sort"><i class="fa fa-sort"></i> User</th>
+    <th class="pointer" data-sort="mac" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
+    <th class="pointer" data-sort="domain" title="Click to sort"><i class="fa fa-sort"></i> Domain</th>
+    <th class="pointer" data-sort="exp" title="Click to sort"><i class="fa fa-sort"></i> Expires In</th>
   </tr>
   </thead>
-  <tbody> 
-<?php
-for ($i = 0; $i < $TotalReg; $i++) {
-	$cookies = $getcookies[$i];
-	$id = $cookies['.id'];
-	$user = $cookies['user'];
-	$maca = $cookies['mac-address'];
-	$domain = $cookies['domain'];
-	$exp = formatDTM($cookies['expires-in']);
-
-	$uriprocess = "'./?remove-cookie=" . $id . "&session=" . $session . "'";
-
-	echo "<tr class='row-data'>";
-	echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($user, ENT_QUOTES) . "'></td>";
-	echo "<td style='text-align:center;'><span class='pointer'  title='Remove " . $user . "' onclick=loadpage(".$uriprocess.")><i class='fa fa-minus-square text-danger'></i></span></td>";
-	echo "<td>" . $user . "</td>";
-	echo "<td>" . $maca . "</td>";
-	echo "<td>" . $domain . "</td>";
-	echo "<td>" . $exp . "</td>";
-	echo "</tr>";
-}
-?>
-  </tbody>
+  <tbody id="tbody"></tbody>
 </table>
 </div>
+<?php
+$rowsData = array();
+for ($i = 0; $i < $TotalReg; $i++) {
+	$cookies = $getcookies[$i];
+	$rowsData[] = array(
+		'id' => $cookies['.id'] ?? '',
+		'user' => $cookies['user'] ?? '',
+		'mac' => $cookies['mac-address'] ?? '',
+		'domain' => $cookies['domain'] ?? '',
+		'exp' => formatDTM($cookies['expires-in'] ?? ''),
+	);
+}
+?>
 
 <!-- Footer pagination -->
 <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -120,6 +104,24 @@ for ($i = 0; $i < $TotalReg; $i++) {
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-initTableView(100);
-initBulkUI('cookie');
+var HS_COOKIES_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var HS_SESSION = <?= json_encode($session); ?>;
+initBulkUI('cookie', { virtual: true });
+initVirtualTableView({
+  data: HS_COOKIES_DATA,
+  defaultPerPage: 100,
+  searchCols: ['user', 'mac', 'domain', 'exp'],
+  renderRow: function(c, checked) {
+    var id = tvEsc(c.id), user = tvEsc(c.user);
+    var sessEnc = encodeURIComponent(HS_SESSION);
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + user + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><span class="pointer" title="Remove ' + user + '" onclick="loadpage(\'./?remove-cookie=' + id + '&session=' + sessEnc + '\')"><i class="fa fa-minus-square text-danger"></i></span></td>' +
+      '<td>' + user + '</td>' +
+      '<td>' + tvEsc(c.mac) + '</td>' +
+      '<td>' + tvEsc(c.domain) + '</td>' +
+      '<td>' + tvEsc(c.exp) + '</td>' +
+      '</tr>';
+  }
+});
 </script>

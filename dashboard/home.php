@@ -93,9 +93,7 @@ if (!isset($_SESSION["mikhmon"])) {
       "?source" => "$idhr",
     ));
     $TotalRHr = count($getSRHr);
-    $getSRBl = $API->comm("/system/script/print", array(
-      "?owner" => "$idbl",
-    ));
+    $getSRBl = mikhmon_scripts_by_month($API, $idbl);
     $TotalRBl = count($getSRBl);
 
     for ($i = 0; $i < $TotalRHr; $i++) {

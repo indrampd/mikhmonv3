@@ -49,61 +49,93 @@ echo "</th>";
 </div>
 <div class="card-body">	   
 <div class="w-6">
-    <input id="filterTable" type="text" class="form-control" placeholder="Search..">
+    <input id="tableSearch" type="text" class="form-control" placeholder="Search..">
   </div>
+<!-- Bulk bar: muncul saat ada checkbox terpilih -->
+<div id="bulkBar" style="display:none; margin:8px 0 0; padding:8px 10px; border:1px dashed rgba(128,128,128,.35); border-radius:4px; align-items:center; gap:8px; flex-wrap:wrap; font-size:13px;">
+  <strong id="bulkCount">0</strong>&nbsp;selected:
+  <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('enable')"><i class="fa fa-unlock"></i> Enable</button>
+  <button type="button" class="btn bg-secondary radius-3 pd-5" onclick="bulkAct('disable')"><i class="fa fa-lock"></i> Disable</button>
+  <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
+</div>
 <div class="overflow box-bordered mr-t-10" style="max-height: 75vh">   	   
 <table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
   <tr>
+    <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
   	<th></th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Name</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Start Date</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Start Time</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Interval</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Next Run</th>
-		<th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Run Count</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
+    <th class="pointer" data-sort="name" title="Click to sort"><i class="fa fa-sort"></i> Name</th>
+    <th class="pointer" data-sort="sdate" title="Click to sort"><i class="fa fa-sort"></i> Start Date</th>
+    <th class="pointer" data-sort="stime" title="Click to sort"><i class="fa fa-sort"></i> Start Time</th>
+    <th class="pointer" data-sort="intv" title="Click to sort"><i class="fa fa-sort"></i> Interval</th>
+    <th class="pointer" data-sort="nrun" title="Click to sort"><i class="fa fa-sort"></i> Next Run</th>
+		<th class="pointer" data-sort="rcnt" title="Click to sort"><i class="fa fa-sort"></i> Run Count</th>
+    <th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> Comment</th>
   </tr>
   </thead>
-  <tbody> 
-<?php
-for ($i = 0; $i < $TotalReg; $i++) {
-	$sch = $getsch[$i];
-	$id = $sch['.id'];
-	$name = $sch['name'];
-	$startd = $sch['start-date'];
-	$startt = $sch['start-time'];
-	$interval = formatInterval($sch['interval']);
-	$nextrun = $sch['next-run'];
-	$runcount = $sch['run-count'];
-	$comment = $sch['comment'];
-	$disabled = $sch['disabled'];
-
-	echo "<tr>";
-	?>
-  	<td style='text-align:center;'><i class='fa fa-minus-square text-danger pointer' onclick="if(confirm('Are you sure to delete scheduler (<?= $name; ?>)?')){loadpage('./?remove-scheduler=<?= $id; ?>&session=<?= $session; ?>')}else{}" title='Remove <?= $name; ?>'></i>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
-  	<?php
-
-		if ($disabled == "true") {
-			$uriprocess = "'./?enable-scheduler=" . $id . "&session=" . $session . "'";
-			echo "<span class='text-warning pointer' title='Enable Scheduler " . $name . "'  onclick=loadpage(".$uriprocess.")><i class='fa fa-lock '></i></span></td>";
-		} else {
-			$uriprocess = "'./?disable-scheduler=" . $id . "&session=" . $session . "'";
-			echo "<span  class='pointer' title='Disable Scheduler " . $name . "'  onclick=loadpage(".$uriprocess.")><i class='fa fa-unlock '></i></span></td>";
-		}
-		echo "<td>" . $name . "</td>";
-		echo "<td>" . $startd . "</td>";
-		echo "<td>" . $startt . "</td>";
-		echo "<td>" . $interval . "</td>";
-		echo "<td>" . $nextrun . "</a></td>";
-		echo "<td>" . $runcount . "</a></td>";
-		echo "<td>" . $comment . "</a></td>";
-		echo "</tr>";
-	}
-	?>
-  </tbody>
+  <tbody id="tbody"></tbody>
 </table>
 </div>
+<?php
+$rowsData = array();
+for ($i = 0; $i < $TotalReg; $i++) {
+	$sch = $getsch[$i];
+	$rowsData[] = array(
+		'id' => $sch['.id'] ?? '',
+		'name' => $sch['name'] ?? '',
+		'sdate' => $sch['start-date'] ?? '',
+		'stime' => $sch['start-time'] ?? '',
+		'intv' => formatInterval($sch['interval'] ?? ''),
+		'nrun' => $sch['next-run'] ?? '',
+		'rcnt' => $sch['run-count'] ?? '',
+		'comm' => $sch['comment'] ?? '',
+		'dis' => (($sch['disabled'] ?? '') == 'true') ? 1 : 0,
+	);
+}
+?>
+<!-- Footer pagination -->
+<div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
+  <div style="display:flex; align-items:center; gap:8px; font-size:12px;">
+    <span id="pageInfo">&nbsp;</span>
+    <select id="perPageSel" class="form-control" style="width:auto; padding:2px 6px; font-size:12px;" title="Rows per page">
+      <option value="50">50</option>
+      <option value="100" selected>100</option>
+      <option value="200">200</option>
+      <option value="500">500</option>
+    </select>
+  </div>
+  <div id="pagePager" style="display:flex; gap:4px; flex-wrap:wrap;"></div>
+</div>
+<script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
+<script>
+var SYS_SCH_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var SYS_SESSION = <?= json_encode($session); ?>;
+initBulkUI('scheduler', { virtual: true });
+initVirtualTableView({
+  data: SYS_SCH_DATA,
+  defaultPerPage: 100,
+  searchCols: ['name', 'sdate', 'stime', 'intv', 'nrun', 'comm'],
+  renderRow: function(s, checked) {
+    var id = tvEsc(s.id), name = tvEsc(s.name);
+    var sessEnc = encodeURIComponent(SYS_SESSION);
+    var idEnc = encodeURIComponent(s.id);
+    var toggleBtn = s.dis
+      ? '<span class="text-warning pointer" title="Enable Scheduler ' + name + '" onclick="loadpage(\'./?enable-scheduler=' + idEnc + '&session=' + sessEnc + '\')"><i class="fa fa-lock"></i></span>'
+      : '<span class="pointer" title="Disable Scheduler ' + name + '" onclick="loadpage(\'./?disable-scheduler=' + idEnc + '&session=' + sessEnc + '\')"><i class="fa fa-unlock"></i></span>';
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + name + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><i class="fa fa-minus-square text-danger pointer" onclick="if(confirm(\'Are you sure to delete scheduler (' + name + ')?\')){loadpage(\'./?remove-scheduler=' + idEnc + '&session=' + sessEnc + '\')}" title="Remove ' + name + '"></i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + toggleBtn + '</td>' +
+      '<td>' + name + '</td>' +
+      '<td>' + tvEsc(s.sdate) + '</td>' +
+      '<td>' + tvEsc(s.stime) + '</td>' +
+      '<td>' + tvEsc(s.intv) + '</td>' +
+      '<td>' + tvEsc(s.nrun) + '</td>' +
+      '<td>' + tvEsc(s.rcnt) + '</td>' +
+      '<td>' + tvEsc(s.comm) + '</td>' +
+      '</tr>';
+  }
+});
+</script>
 </div>
 </div>
 </div>

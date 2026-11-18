@@ -479,25 +479,16 @@ if (!empty($API->connected)) {
           <details class="bot-group" style="margin-top:auto; padding-top:0;">
             <summary style="margin-top:2px;"><i class="fa fa-caret-right bot-caret"></i><i class="fa fa-terminal text-info"></i> Perintah Bot</summary>
             <ul class="wh-cmds pd-0" style="list-style:none; margin:4px 0 8px; padding:0; font-size:13px; line-height:2;">
+              <li><code>/help</code> <span>Panduan lengkap bot</span></li>
               <li><code>/pptagihan</code> <span>Ringkasan tagihan &amp; tombol aksi inline</span></li>
               <li><code>/pplunas &lt;user&gt;</code> <span>Tandai lunas &amp; pulihkan profil</span></li>
               <li><code>/ppisolir &lt;user&gt;</code> <span>Isolir pelanggan menunggak</span></li>
               <li><code>/ppcek &lt;user&gt;</code> <span>Cek koneksi &amp; status tagihan</span></li>
-              <li><code>/hs</code> <span>Panduan modul voucher hotspot</span></li>
-              <li><code>/hscek &lt;kode&gt;</code> <span>Detail voucher &amp; status online</span></li>
-              <li><code>/hslist [profil]</code> <span>Rekap voucher per profil</span></li>
-              <li><code>/hsonline</code> <span>Daftar sesi hotspot aktif</span></li>
-              <li><code>/hskick &lt;kode&gt;</code> <span>Putus sesi voucher</span></li>
-              <li><code>/hsreset &lt;kode&gt;</code> <span>Reset counter pemakaian</span></li>
-              <li><code>/hsgen [profil] [jml]</code> <span>Generate voucher (owner)</span></li>
-              <li><code>/hsdel &lt;kode&gt;</code> <span>Hapus voucher (owner)</span></li>
-              <li><code>/ppadd &lt;user&gt; &lt;profil&gt;</code> <span>Tambah pelanggan PPPoE (owner)</span></li>
-              <li><code>/ppprof &lt;user&gt; &lt;profil&gt;</code> <span>Ganti paket pelanggan (owner)</span></li>
-              <li><code>/pppass &lt;user&gt;</code> <span>Reset password &amp; putus sesi (owner)</span></li>
-              <li><code>/ppdel &lt;user&gt;</code> <span>Hapus pelanggan (owner, konfirmasi)</span></li>
               <li><code>/reminder [tenggang|isolir]</code> <span>Susun pesan reminder per pelanggan</span></li>
-              <li><code>/broadcast &lt;pesan&gt;</code> <span>Kirim pengumuman ke semua chat (owner)</span></li>
-              <li><code>/settemplate [kategori]</code> <span>Atur template reminder (owner)</span></li>
+              <li><code>/hscek &lt;kode&gt;</code> <span>Detail voucher &amp; tombol Kick/Reset/Hapus</span></li>
+              <li><code>/hslist [profil]</code> <span>Rekap voucher per profil</span></li>
+              <li><code>/hsonline</code> <span>Daftar sesi hotspot aktif + tombol Kick</span></li>
+              <li><code>/hsgen [profil] [jml]</code> <span>Generate voucher (owner)</span></li>
             </ul>
             <small class="hint-text">
               <i class="fa fa-bolt"></i> Aksi dari Telegram langsung ter-push <em>live</em> ke tabel PPPoE tanpa refresh.

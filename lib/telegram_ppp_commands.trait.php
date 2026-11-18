@@ -7,6 +7,20 @@
 
 trait TelegramPppCommands
 {
+    /**
+     * Bottom row for PPPoE result/menu screens: optional back to the picker
+     * plus Tutup (removes the keyboard without changing the message text).
+     */
+    private function pppNavRow($backAction = '', $backLabel = '🔙 Kembali')
+    {
+        $row = array();
+        if ($backAction !== '') {
+            $row[] = array('text' => $backLabel, 'callback_data' => $backAction);
+        }
+        $row[] = array('text' => '❌ Tutup', 'callback_data' => 'tutup');
+        return $row;
+    }
+
     /* ==========================================================
      * Customer Management (/pp*)
      * Owner-only: menambah/menghapus secret memengaruhi layanan.
@@ -24,7 +38,7 @@ trait TelegramPppCommands
         $password = trim((string)($args[2] ?? ''));
 
         if ($user === '') {
-            $this->sendMessage($chat_id, "➕ <b>Tambah Pelanggan PPPoE</b>\n\nKetik: <code>/ppadd &lt;nama_user&gt;</code>\nSetelah itu pilih paket lewat tombol.\n\n<i>Nama user harus diketik karena baru dibuat; sisanya cukup klik.</i>");
+            $this->sendMessage($chat_id, "➕ <b>Tambah Pelanggan PPPoE</b>\n\nKetik: <code>/ppadd &lt;nama_user&gt;</code>\nSetelah itu pilih paket lewat tombol.\n\n<i>Nama user harus diketik karena baru dibuat; sisanya cukup klik.</i>", array('inline_keyboard' => array($this->pppNavRow())));
             return;
         }
 
@@ -62,16 +76,18 @@ trait TelegramPppCommands
             $html .= "Paket    : <code>" . htmlspecialchars($profile) . "</code>\n";
             $html .= "Password : <code>" . htmlspecialchars($res['password']) . "</code>\n";
             $html .= "Komentar : <code>" . htmlspecialchars($res['comment']) . "</code>";
+            $kb = array('inline_keyboard' => array($this->pppNavRow()));
             if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, $html);
+                $this->editMessageText($chat_id, $msg_id, $html, $kb);
             } else {
-                $this->sendMessage($chat_id, $html);
+                $this->sendMessage($chat_id, $html, $kb);
             }
         } else {
+            $kb = array('inline_keyboard' => array($this->pppNavRow()));
             if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, "❌ " . htmlspecialchars($res['message']));
+                $this->editMessageText($chat_id, $msg_id, "❌ " . htmlspecialchars($res['message']), $kb);
             } else {
-                $this->sendMessage($chat_id, "❌ " . htmlspecialchars($res['message']));
+                $this->sendMessage($chat_id, "❌ " . htmlspecialchars($res['message']), $kb);
             }
         }
     }
@@ -103,7 +119,7 @@ trait TelegramPppCommands
             list($cust, $error) = MikhmonBilling::resolveSecret($api, $user);
             if ($cust === null) {
                 $api->disconnect();
-                $this->sendMessage($chat_id, htmlspecialchars($error));
+                $this->sendMessage($chat_id, htmlspecialchars($error), array('inline_keyboard' => array($this->pppNavRow('ppprofu', '🔙 Pilih pelanggan'))));
                 return;
             }
 
@@ -145,10 +161,11 @@ trait TelegramPppCommands
         $api->disconnect();
 
         $html = ($res['success'] ? "✅ " : "❌ ") . htmlspecialchars($res['message']);
+        $kb = array('inline_keyboard' => array($this->pppNavRow('ppprofu', '🔙 Pilih pelanggan')));
         if (!empty($msg_id)) {
-            $this->editMessageText($chat_id, $msg_id, $html);
+            $this->editMessageText($chat_id, $msg_id, $html, $kb);
         } else {
-            $this->sendMessage($chat_id, $html);
+            $this->sendMessage($chat_id, $html, $kb);
         }
     }
 
@@ -177,16 +194,18 @@ trait TelegramPppCommands
 
         if ($res['success']) {
             $html = "🔑 <b>" . htmlspecialchars($user) . "</b>\nPassword baru: <code>" . htmlspecialchars($res['password']) . "</code>\n" . htmlspecialchars($res['message']);
+            $kb = array('inline_keyboard' => array($this->pppNavRow('pppassu', '🔙 Pilih pelanggan')));
             if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, $html);
+                $this->editMessageText($chat_id, $msg_id, $html, $kb);
             } else {
-                $this->sendMessage($chat_id, $html);
+                $this->sendMessage($chat_id, $html, $kb);
             }
         } else {
+            $kb = array('inline_keyboard' => array($this->pppNavRow('pppassu', '🔙 Pilih pelanggan')));
             if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, "❌ " . htmlspecialchars($res['message']));
+                $this->editMessageText($chat_id, $msg_id, "❌ " . htmlspecialchars($res['message']), $kb);
             } else {
-                $this->sendMessage($chat_id, "❌ " . htmlspecialchars($res['message']));
+                $this->sendMessage($chat_id, "❌ " . htmlspecialchars($res['message']), $kb);
             }
         }
     }
@@ -211,7 +230,7 @@ trait TelegramPppCommands
         list($cust, $error) = MikhmonBilling::resolveSecret($api, $kode);
         if ($cust === null) {
             $api->disconnect();
-            $this->sendMessage($chat_id, htmlspecialchars($error));
+            $this->sendMessage($chat_id, htmlspecialchars($error), array('inline_keyboard' => array($this->pppNavRow('ppdel', '🔙 Pilih pelanggan'))));
             return;
         }
 
@@ -309,7 +328,13 @@ trait TelegramPppCommands
         }
 
         if (empty($matched)) {
-            $this->sendMessage($chat_id, "⚪ Tidak ada pelanggan dalam kategori <b>{$kategori}</b>.");
+            $html = "⚪ Tidak ada pelanggan dalam kategori <b>{$kategori}</b>.";
+            $kb = array('inline_keyboard' => array($this->pppNavRow('remmenu', '🔙 Kategori')));
+            if (!empty($msg_id)) {
+                $this->editMessageText($chat_id, $msg_id, $html, $kb);
+            } else {
+                $this->sendMessage($chat_id, $html, $kb);
+            }
             return;
         }
 
@@ -342,7 +367,13 @@ trait TelegramPppCommands
             return;
         }
 
-        $this->sendMessage($chat_id, $header);
+        // Replace the category menu with the header so the old buttons do not
+        // stay clickable after the reminder has been built.
+        if (!empty($msg_id)) {
+            $this->editMessageText($chat_id, $msg_id, $header);
+        } else {
+            $this->sendMessage($chat_id, $header);
+        }
         foreach ($messages as $m) {
             $this->sendMessage($chat_id, str_replace("\n", "\n", htmlspecialchars($m)));
         }
@@ -430,10 +461,11 @@ trait TelegramPppCommands
             $html = "📝 Template <b>{$kategori}</b> saat ini:\n";
             $html .= "<code>" . htmlspecialchars($tpl) . "</code>\n\n";
             $html .= "Placeholder: <code>{nama} {user} {paket} {bulan} {tgl}</code>";
+            $kb = array('inline_keyboard' => array($this->pppNavRow('tplmenu', '🔙 Template')));
             if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, $html);
+                $this->editMessageText($chat_id, $msg_id, $html, $kb);
             } else {
-                $this->sendMessage($chat_id, $html);
+                $this->sendMessage($chat_id, $html, $kb);
             }
             return;
         }
@@ -502,9 +534,10 @@ trait TelegramPppCommands
 
             if ($res['success']) {
                 $this->answerCallback($cb_id, "🗑 {$name} dihapus!");
-                $this->editMessageText($chat_id, $msg_id, "🗑 Pelanggan <b>" . htmlspecialchars($name) . "</b> telah dihapus oleh @{$sender_name}.");
+                $this->editMessageText($chat_id, $msg_id, "🗑 Pelanggan <b>" . htmlspecialchars($name) . "</b> telah dihapus oleh @{$sender_name}.", array('inline_keyboard' => array($this->pppNavRow('ppdel', '🔙 Pilih pelanggan'))));
             } else {
                 $this->answerCallback($cb_id, $res['message'], true);
+                $this->editMessageText($chat_id, $msg_id, "❌ " . htmlspecialchars($res['message']), array('inline_keyboard' => array($this->pppNavRow('ppdel', '🔙 Pilih pelanggan'))));
             }
             return true;
         }
@@ -583,6 +616,20 @@ trait TelegramPppCommands
             return true;
         }
 
+        if ($data === 'remmenu' || $data === 'tplmenu') {
+            if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
+                $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
+                return true;
+            }
+            $this->answerCallback($cb_id, 'Memuat menu...');
+            if ($data === 'remmenu') {
+                $this->cmdReminder($chat_id, $tg_id, array(), $msg_id);
+            } else {
+                $this->cmdSetTemplate($chat_id, $tg_id, array(), $msg_id);
+            }
+            return true;
+        }
+
         if (str_starts_with($data, 'remcat:')) {
             if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
                 $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
@@ -590,7 +637,7 @@ trait TelegramPppCommands
             }
             $kategori = substr($data, 7);
             $this->answerCallback($cb_id, "Menyusun reminder {$kategori}...");
-            $this->cmdReminder($chat_id, $tg_id, array($kategori));
+            $this->cmdReminder($chat_id, $tg_id, array($kategori), $msg_id);
             return true;
         }
 

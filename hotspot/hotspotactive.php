@@ -81,13 +81,6 @@ if (!isset($_SESSION["mikhmon"])) {
 				?>			</h3>
         </div>
          <div class="card-body overflow">
-<style>
-/* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
-   (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
-   ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
-#dataTable tbody tr.row-data { display: none; }
-</style>
-<noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
 <div style="margin-bottom:8px;">
   <input id="tableSearch" type="text" class="form-control" placeholder="Search.." style="max-width:300px;">
 </div>
@@ -101,52 +94,39 @@ if (!isset($_SESSION["mikhmon"])) {
   <tr>
     <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
     <th style="width:50px; text-align:center;"></th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> User</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Mac Address</th>
-    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Uptime</th>
-    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Bytes In</th>
-    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Bytes Out</th>
-    <th class="pointer text-right" title="Click to sort"><i class="fa fa-sort"></i> Time Left</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Login By</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
+    <th class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
+    <th class="pointer" data-sort="user" title="Click to sort"><i class="fa fa-sort"></i> User</th>
+    <th class="pointer" data-sort="addr" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
+    <th class="pointer" data-sort="mac" title="Click to sort"><i class="fa fa-sort"></i> Mac Address</th>
+    <th class="pointer text-right" data-sort="up" title="Click to sort"><i class="fa fa-sort"></i> Uptime</th>
+    <th class="pointer text-right" data-sort="bi" title="Click to sort"><i class="fa fa-sort"></i> Bytes In</th>
+    <th class="pointer text-right" data-sort="bo" title="Click to sort"><i class="fa fa-sort"></i> Bytes Out</th>
+    <th class="pointer text-right" data-sort="left" title="Click to sort"><i class="fa fa-sort"></i> Time Left</th>
+    <th class="pointer" data-sort="by" title="Click to sort"><i class="fa fa-sort"></i> Login By</th>
+    <th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
   </tr>
   </thead>
-  <tbody>
+  <tbody id="tbody"></tbody>
+</table>
 <?php
+$rowsData = array();
 for ($i = 0; $i < $TotalReg; $i++) {
 	$hotspotactive = $gethotspotactive[$i];
-	$id = $hotspotactive['.id'];
-	$server = $hotspotactive['server'];
-	$user = $hotspotactive['user'];
-	$address = $hotspotactive['address'];
-	$mac = $hotspotactive['mac-address'];
-	$uptime = formatDTM($hotspotactive['uptime']);
-	$usesstime = formatDTM($hotspotactive['session-time-left']);
-	$bytesi = formatBytes($hotspotactive['bytes-in'], 2);
-	$byteso = formatBytes($hotspotactive['bytes-out'], 2);
-	$loginby = $hotspotactive['login-by'];
-	$comment = $hotspotactive['comment'];
-	$uriprocess = "'./?remove-user-active=" . $id . "&session=" . $session . "'";
-	echo "<tr class='row-data'>";
-	echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($user, ENT_QUOTES) . "'></td>";
-	echo "<td style='text-align:center;'><span class='pointer'  title='Remove " . $user . "' onclick=loadpage(".$uriprocess.")><i class='fa fa-minus-square text-danger'></i></span></td>";
-	echo "<td><a  title='filter " . $server . "' href='./?hotspot=active&server=" . $server . "&session=" . $session . "'><i class='fa fa-server'></i> " . $server . "</a></td>";
-	echo "<td><a title='Open User " . htmlspecialchars($user, ENT_QUOTES) . "' href='./?hotspot-user=" . urlencode($user) . "&session=" . $session . "'><i class='fa fa-edit'></i> " . $user . "</a></td>";
-	echo "<td>" . $address . "</td>";
-	echo "<td>" . $mac . "</td>";
-	echo "<td style='text-align:right;'>" . $uptime . "</td>";
-	echo "<td style='text-align:right;'>" . $bytesi . "</td>";
-	echo "<td style='text-align:right;'>" . $byteso . "</td>";
-	echo "<td style='text-align:right;'>" . $usesstime . "</td>";
-	echo "<td>" . $loginby . "</td>";
-	echo "<td>" . $comment . "</td>";
-	echo "</tr>";
+	$rowsData[] = array(
+		'id' => $hotspotactive['.id'] ?? '',
+		'srv' => $hotspotactive['server'] ?? '',
+		'user' => $hotspotactive['user'] ?? '',
+		'addr' => $hotspotactive['address'] ?? '',
+		'mac' => $hotspotactive['mac-address'] ?? '',
+		'up' => formatDTM($hotspotactive['uptime'] ?? ''),
+		'bi' => formatBytes($hotspotactive['bytes-in'] ?? 0, 2),
+		'bo' => formatBytes($hotspotactive['bytes-out'] ?? 0, 2),
+		'left' => formatDTM($hotspotactive['session-time-left'] ?? ''),
+		'by' => $hotspotactive['login-by'] ?? '',
+		'comm' => $hotspotactive['comment'] ?? '',
+	);
 }
 ?>
-  </tbody>
-</table>
 
 <!-- Footer pagination -->
 <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -168,6 +148,30 @@ for ($i = 0; $i < $TotalReg; $i++) {
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-initTableView(100);
-initBulkUI('hs-active');
+var HS_ACTIVE_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var HS_SESSION = <?= json_encode($session); ?>;
+initBulkUI('hs-active', { virtual: true });
+initVirtualTableView({
+  data: HS_ACTIVE_DATA,
+  defaultPerPage: 100,
+  searchCols: ['srv', 'user', 'addr', 'mac', 'by', 'comm'],
+  renderRow: function(a, checked) {
+    var id = tvEsc(a.id), user = tvEsc(a.user), srv = tvEsc(a.srv);
+    var sessEnc = encodeURIComponent(HS_SESSION);
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + user + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><span class="pointer" title="Remove ' + user + '" onclick="loadpage(\'./?remove-user-active=' + id + '&session=' + sessEnc + '\')"><i class="fa fa-minus-square text-danger"></i></span></td>' +
+      '<td><a title="filter ' + srv + '" href="./?hotspot=active&server=' + encodeURIComponent(a.srv) + '&session=' + sessEnc + '"><i class="fa fa-server"></i> ' + srv + '</a></td>' +
+      '<td><a title="Open User ' + user + '" href="./?hotspot-user=' + encodeURIComponent(a.user) + '&session=' + sessEnc + '"><i class="fa fa-edit"></i> ' + user + '</a></td>' +
+      '<td>' + tvEsc(a.addr) + '</td>' +
+      '<td>' + tvEsc(a.mac) + '</td>' +
+      '<td style="text-align:right;">' + tvEsc(a.up) + '</td>' +
+      '<td style="text-align:right;">' + tvEsc(a.bi) + '</td>' +
+      '<td style="text-align:right;">' + tvEsc(a.bo) + '</td>' +
+      '<td style="text-align:right;">' + tvEsc(a.left) + '</td>' +
+      '<td>' + tvEsc(a.by) + '</td>' +
+      '<td>' + tvEsc(a.comm) + '</td>' +
+      '</tr>';
+  }
+});
 </script>

@@ -24,51 +24,32 @@ if (!isset($_SESSION["mikhmon"])) {
   header("Location:../admin.php?id=login");
 } else {
 
+  $userProplist = '.id,server,name,password,profile,mac-address,uptime,bytes-in,bytes-out,comment,disabled,limit-uptime,limit-bytes-total';
   if ($prof == "all") {
-    $getuser = $API->comm("/ip/hotspot/user/print");
-    $TotalReg = count($getuser);
-
-    $counttuser = $API->comm("/ip/hotspot/user/print", array(
-      "count-only" => ""
+    $getuser = $API->comm("/ip/hotspot/user/print", array(
+      ".proplist" => $userProplist,
     ));
-
   } elseif ($prof != "all") {
     $getuser = $API->comm("/ip/hotspot/user/print", array(
       "?profile" => "$prof",
+      ".proplist" => $userProplist,
     ));
-    $TotalReg = count($getuser);
-
-    $counttuser = $API->comm("/ip/hotspot/user/print", array(
-      "count-only" => "",
-      "?profile" => "$prof",
-    ));
-
   }
   if ($comm != "") {
     $getuser = $API->comm("/ip/hotspot/user/print", array(
       "?comment" => "$comm",
-    //"?uptime" => "00:00:00"
+      ".proplist" => $userProplist,
     ));
-    $TotalReg = count($getuser);
-
-    $counttuser = $API->comm("/ip/hotspot/user/print", array(
-      "count-only" => "",
-      "?comment" => "$comm",
-    ));
-    
   }
   $exp = $_GET['exp'];
   if ($exp != "") {
     $getuser = $API->comm("/ip/hotspot/user/print", array(
       "?limit-uptime" => "1s",
+      ".proplist" => $userProplist,
     ));
-    
-    $counttuser = $API->comm("/ip/hotspot/user/print", array(
-      "count-only" => "",
-      "?limit-uptime" => "1s",
-    ));
-    
   }
+  $TotalReg = is_array($getuser) ? count($getuser) : 0;
+  $counttuser = $TotalReg;
   $getprofile = $API->comm("/ip/hotspot/user/profile/print");
   $TotalReg2 = count($getprofile);
 }
@@ -186,95 +167,48 @@ if (!isset($_SESSION["mikhmon"])) {
   <tr>
     <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
     <th style="min-width:50px;" class="align-middle text-center" id="cuser"><?= $counttuser; ?></th>
-    <th style="min-width:50px;" class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_name ?></th>
+    <th style="min-width:50px;" class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
+    <th class="pointer" data-sort="name" title="Click to sort"><i class="fa fa-sort"></i> <?= $_name ?></th>
     <th>Print</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_profile ?></th>
-	  <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Mac Address</th>
-    <th class="text-right align-middle pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_uptime_user ?></th>
-    <th class="text-right align-middle pointer" title="Click to sort"><i class="fa fa-sort"></i> Bytes In</th>
-    <th class="text-right align-middle pointer" title="Click to sort"><i class="fa fa-sort"></i> Bytes Out</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
+    <th class="pointer" data-sort="prof" title="Click to sort"><i class="fa fa-sort"></i> <?= $_profile ?></th>
+	  <th class="pointer" data-sort="mac" title="Click to sort"><i class="fa fa-sort"></i> Mac Address</th>
+    <th class="text-right align-middle pointer" data-sort="up" title="Click to sort"><i class="fa fa-sort"></i> <?= $_uptime_user ?></th>
+    <th class="text-right align-middle pointer" data-sort="bi" title="Click to sort"><i class="fa fa-sort"></i> Bytes In</th>
+    <th class="text-right align-middle pointer" data-sort="bo" title="Click to sort"><i class="fa fa-sort"></i> Bytes Out</th>
+    <th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
     </tr>
   </thead>
-  <tbody id="tbody">
-<?php
-for ($i = 0; $i < $TotalReg; $i++) {
-  $userdetails = $getuser[$i];
-  $uid = $userdetails['.id'];
-  $userver = $userdetails['server'];
-  $uname = $userdetails['name'];
-  $upass = $userdetails['password'];
-  $uprofile = $userdetails['profile'];
-  $umacadd = $userdetails['mac-address'];
-  $uuptime = formatDTM($userdetails['uptime']);
-  $ubytesi = formatBytes($userdetails['bytes-in'], 2);
-  $ubyteso = formatBytes($userdetails['bytes-out'], 2);
-
-  $ucomment = $userdetails['comment'];
-  $udisabled = $userdetails['disabled'];
-  $utimelimit = $userdetails['limit-uptime'];
-  if ($utimelimit == '1s') {
-    $utimelimit = ' expired';
-  } else {
-    $utimelimit = ' ' . $utimelimit;
-  }
-  $udatalimit = $userdetails['limit-bytes-total'];
-  if ($udatalimit == '') {
-    $udatalimit = '';
-  } else {
-    $udatalimit = ' ' . formatBytes($udatalimit, 2);
-  }
-
-  echo "<tr class='row-data'>";
-  ?>
-  <td style='text-align:center;'>
-  <input type='checkbox' class='row-check' data-id='<?= $uid; ?>' data-name='<?= htmlspecialchars($uname, ENT_QUOTES); ?>'>
-  </td>
-  <td style='text-align:center;'>
-  <i class='fa fa-minus-square text-danger pointer' onclick="if(confirm('Are you sure to delete username (<?= $uname; ?>)?')){loadpage('./?remove-hotspot-user=<?= $uid; ?>&session=<?= $session; ?>')}else{}" title='Remove <?= $uname; ?>'></i>&nbsp&nbsp&nbsp&nbsp&nbsp&nbsp
-  <?php
-  if ($udisabled == "true") {
-    $uriprocess = "'./?enable-hotspot-user=" . $uid . "&session=" . $session."'";
-    echo '<span class="text-warning pointer" title="Enable User ' . $uname . '"  onclick="loadpage('.$uriprocess.')"><i class="fa fa-lock "></i></span></td>';
-  } else {
-    $uriprocess = "'./?disable-hotspot-user=" . $uid . "&session=" . $session."'";
-    echo '<span class="pointer" title="Disable User ' . $uname . '"  onclick="loadpage('.$uriprocess.')"><i class="fa fa-unlock "></i></span></td>';
-  }
-  echo "<td>" . $userver . "</td>";
-  if ($uname == $upass) {
-    $usermode = "vc";
-  } else {
-    $usermode = "up";
-  }
-  $popup = "javascript:window.open('./voucher/print.php?user=" . $usermode . "-" . $uname . "&qr=no&session=" . $session . "','_blank','width=320,height=550').print();";
-  $popupQR = "javascript:window.open('./voucher/print.php?user=" . $usermode . "-" . $uname . "&qr=yes&session=" . $session . "','_blank','width=320,height=550').print();";
-  echo "<td><a title='Open User " . $uname . "' href=./?hotspot-user=" . $uid . "&session=" . $session . "><i class='fa fa-edit'></i> " . $uname . " </a>";
-  echo '</td><td class"text-center"><a title="Print ' . $uname . '" href="' . $popup . '"><i class="fa fa-print"></i></a> &nbsp <a title="Print ' . $uname . '" href="' . $popupQR . '"><i class="fa fa-qrcode"></i> </a></td>';
-  echo "<td>" . $uprofile . "</td>";
-  echo "<td style=' text-align:left'>" . $umacadd . "</td>";
-  echo "<td style=' text-align:right'>" . $uuptime . "</td>";
-  echo "<td style=' text-align:right'>" . $ubytesi . "</td>";
-  echo "<td style=' text-align:right'>" . $ubyteso . "</td>";
-  // Ellipsis + title: komentar panjang tidak membuat tabel melebar melewati
-  // kontainer (penyebab scrollbar horizontal menimpa baris terakhir).
-  echo "<td style='max-width:300px; overflow:hidden; text-overflow:ellipsis;' title=\"" . htmlspecialchars($ucomment . $udatalimit . $utimelimit, ENT_QUOTES) . "\">";
-  if ($uname == "default-trial") {
-  } else if (substr($ucomment,0,3) == "vc-" || substr($ucomment,0,3) == "up-") {
-    echo "<a href=\"./?hotspot=users&comment=" . urlencode($ucomment) . "&session=" . $session . "\" title='Filter by " . htmlspecialchars($ucomment, ENT_QUOTES) . "'><i class='fa fa-search'></i> ". $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
-  } else if ($utimelimit == ' expired') {
-    echo "<a href=\"./?hotspot=users&profile=all&exp=1&session=" . $session . "\" title='Filter by expired'><i class='fa fa-search'></i> " . $ucomment." ". $udatalimit ." ".$utimelimit . "</a>";
-  }else{
-    echo $ucomment.' ';
-  }
-  echo  "</td>";
-  echo "</tr>";
-
-}
-?>
-  </tbody>
+  <tbody id="tbody"></tbody>
 </table>
 </div>
+<?php
+$rowsData = array();
+for ($i = 0; $i < $TotalReg; $i++) {
+  $userdetails = $getuser[$i];
+  $uname = $userdetails['name'] ?? '';
+  $upass = $userdetails['password'] ?? '';
+  $ucomment = $userdetails['comment'] ?? '';
+  $utimelimit = $userdetails['limit-uptime'] ?? '';
+  $utimelimit = ($utimelimit == '1s') ? ' expired' : (' ' . $utimelimit);
+  $udatalimit = $userdetails['limit-bytes-total'] ?? '';
+  $udatalimit = ($udatalimit == '') ? '' : (' ' . formatBytes($udatalimit, 2));
+  $rowsData[] = array(
+    'id' => $userdetails['.id'] ?? '',
+    'srv' => $userdetails['server'] ?? '',
+    'name' => $uname,
+    'mode' => ($uname == $upass) ? 'vc' : 'up',
+    'prof' => $userdetails['profile'] ?? '',
+    'mac' => $userdetails['mac-address'] ?? '',
+    'up' => formatDTM($userdetails['uptime'] ?? ''),
+    'bi' => formatBytes($userdetails['bytes-in'] ?? 0, 2),
+    'bo' => formatBytes($userdetails['bytes-out'] ?? 0, 2),
+    'comm' => $ucomment,
+    'dis' => ($userdetails['disabled'] ?? '') === 'true' ? 1 : 0,
+    'tlim' => $utimelimit,
+    'dlim' => $udatalimit,
+  );
+}
+?>
 
 <!-- Footer pagination -->
 <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -297,8 +231,50 @@ for ($i = 0; $i < $TotalReg; $i++) {
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-// Bulk (checkbox) + Filter + pagination client-side
-initTableView(100);
-initBulkUI('hotspot');
+// Bulk (checkbox) + Filter + pagination virtual (hanya render halaman aktif)
+var HS_USERS_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var HS_SESSION = <?= json_encode($session); ?>;
+initBulkUI('hotspot', { virtual: true });
+initVirtualTableView({
+  data: HS_USERS_DATA,
+  defaultPerPage: 100,
+  searchCols: ['srv', 'name', 'prof', 'mac', 'comm', 'tlim', 'dlim'],
+  renderRow: function(u, checked) {
+    var uid = tvEsc(u.id);
+    var uname = tvEsc(u.name);
+    var uEnc = encodeURIComponent(u.name);
+    var sessEnc = encodeURIComponent(HS_SESSION);
+    var toggleBtn = u.dis
+      ? '<span class="text-warning pointer" title="Enable User ' + uname + '" onclick="loadpage(\'./?enable-hotspot-user=' + uid + '&session=' + sessEnc + '\')"><i class="fa fa-lock"></i></span>'
+      : '<span class="pointer" title="Disable User ' + uname + '" onclick="loadpage(\'./?disable-hotspot-user=' + uid + '&session=' + sessEnc + '\')"><i class="fa fa-unlock"></i></span>';
+    var popup = "javascript:window.open('./voucher/print.php?user=" + u.mode + "-" + uEnc + "&qr=no&session=" + sessEnc + "','_blank','width=320,height=550').print();";
+    var popupQR = "javascript:window.open('./voucher/print.php?user=" + u.mode + "-" + uEnc + "&qr=yes&session=" + sessEnc + "','_blank','width=320,height=550').print();";
+    var cTitle = tvEsc(u.comm + u.dlim + u.tlim);
+    var commCell = '';
+    if (u.name !== 'default-trial') {
+      var pfx = u.comm.substring(0, 3);
+      if (pfx === 'vc-' || pfx === 'up-') {
+        commCell = '<a href="./?hotspot=users&comment=' + encodeURIComponent(u.comm) + '&session=' + sessEnc + '" title="Filter by ' + tvEsc(u.comm) + '"><i class="fa fa-search"></i> ' + tvEsc(u.comm) + ' ' + tvEsc(u.dlim) + ' ' + tvEsc(u.tlim) + '</a>';
+      } else if (u.tlim === ' expired') {
+        commCell = '<a href="./?hotspot=users&profile=all&exp=1&session=' + sessEnc + '" title="Filter by expired"><i class="fa fa-search"></i> ' + tvEsc(u.comm) + ' ' + tvEsc(u.dlim) + ' ' + tvEsc(u.tlim) + '</a>';
+      } else {
+        commCell = tvEsc(u.comm) + ' ';
+      }
+    }
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + uid + '" data-name="' + uname + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><i class="fa fa-minus-square text-danger pointer" onclick="if(confirm(\'Are you sure to delete username (' + uname + ')?\')){loadpage(\'./?remove-hotspot-user=' + uid + '&session=' + sessEnc + '\')}" title="Remove ' + uname + '"></i>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;' + toggleBtn + '</td>' +
+      '<td>' + tvEsc(u.srv) + '</td>' +
+      '<td><a title="Open User ' + uname + '" href="./?hotspot-user=' + uid + '&session=' + sessEnc + '"><i class="fa fa-edit"></i> ' + uname + '</a></td>' +
+      '<td class="text-center"><a title="Print ' + uname + '" href="' + popup + '"><i class="fa fa-print"></i></a> &nbsp; <a title="Print ' + uname + '" href="' + popupQR + '"><i class="fa fa-qrcode"></i></a></td>' +
+      '<td>' + tvEsc(u.prof) + '</td>' +
+      '<td style="text-align:left">' + tvEsc(u.mac) + '</td>' +
+      '<td style="text-align:right">' + tvEsc(u.up) + '</td>' +
+      '<td style="text-align:right">' + tvEsc(u.bi) + '</td>' +
+      '<td style="text-align:right">' + tvEsc(u.bo) + '</td>' +
+      '<td style="max-width:300px; overflow:hidden; text-overflow:ellipsis;" title="' + cTitle + '">' + commCell + '</td>' +
+      '</tr>';
+  }
+});
 </script>
 	

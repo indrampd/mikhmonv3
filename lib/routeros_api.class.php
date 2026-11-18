@@ -226,13 +226,19 @@ class RouterosAPI
                         $CURRENT =& $PARSED[$x][];
                     }
                 } elseif ($x != '!done') {
-                    $MATCHES = array();
-                    if (preg_match_all('/[^=]+/i', $x, $MATCHES)) {
-                        if ($MATCHES[0][0] == 'ret') {
-                            $singlevalue = $MATCHES[0][1];
-                        }
-                        $CURRENT[$MATCHES[0][0]] = (isset($MATCHES[0][1]) ? $MATCHES[0][1] : '');
+                    // Word format is "=key=value"; split on the FIRST '=' only.
+                    // The old regex cut the value at every '=' inside it, so
+                    // values such as on-login scripts were silently truncated.
+                    if (isset($x[0]) && $x[0] === '=') {
+                        $x = substr($x, 1);
                     }
+                    $eq = strpos($x, '=');
+                    $key = ($eq === false) ? $x : substr($x, 0, $eq);
+                    $value = ($eq === false) ? '' : substr($x, $eq + 1);
+                    if ($key == 'ret') {
+                        $singlevalue = $value;
+                    }
+                    $CURRENT[$key] = $value;
                 }
             }
 
@@ -268,13 +274,19 @@ class RouterosAPI
                         $CURRENT =& $PARSED[$x][];
                     }
                 } elseif ($x != '!done') {
-                    $MATCHES = array();
-                    if (preg_match_all('/[^=]+/i', $x, $MATCHES)) {
-                        if ($MATCHES[0][0] == 'ret') {
-                            $singlevalue = $MATCHES[0][1];
-                        }
-                        $CURRENT[$MATCHES[0][0]] = (isset($MATCHES[0][1]) ? $MATCHES[0][1] : '');
+                    // Word format is "=key=value"; split on the FIRST '=' only.
+                    // The old regex cut the value at every '=' inside it, so
+                    // values such as on-login scripts were silently truncated.
+                    if (isset($x[0]) && $x[0] === '=') {
+                        $x = substr($x, 1);
                     }
+                    $eq = strpos($x, '=');
+                    $key = ($eq === false) ? $x : substr($x, 0, $eq);
+                    $value = ($eq === false) ? '' : substr($x, $eq + 1);
+                    if ($key == 'ret') {
+                        $singlevalue = $value;
+                    }
+                    $CURRENT[$key] = $value;
                 }
             }
             foreach ($PARSED as $key => $value) {
@@ -806,6 +818,72 @@ function randNULC($length) {
 		$result .= $charArray[$randChar];
 	}
 	return $result;
+}
+
+/**
+ * Derive the "mmmYYYY" month-year tag from a Mikhmon record script's
+ * source or name ("mmm/dd/yyyy-|-$time-..." or "yyyy-mm-dd-|-$time-...").
+ */
+function mikhmon_script_month_year($row) {
+	static $months = array(
+		'01' => 'jan', '02' => 'feb', '03' => 'mar', '04' => 'apr',
+		'05' => 'may', '06' => 'jun', '07' => 'jul', '08' => 'aug',
+		'09' => 'sep', '10' => 'oct', '11' => 'nov', '12' => 'dec',
+	);
+	$candidates = array(
+		isset($row['source']) ? trim((string)$row['source']) : '',
+		isset($row['name']) ? trim((string)explode('-|-', (string)$row['name'])[0]) : '',
+	);
+	foreach ($candidates as $c) {
+		if (preg_match('/^([a-z]{3})\/\d{2}\/(\d{4})$/i', $c, $m)) {
+			return strtolower($m[1]) . $m[2];
+		}
+		if (preg_match('/^(\d{4})-(\d{2})-\d{2}$/', $c, $m) && isset($months[$m[2]])) {
+			return $months[$m[2]] . $m[1];
+		}
+	}
+	return '';
+}
+
+/**
+ * Fetch Mikhmon record scripts for a given "mmmYYYY" month by querying
+ * comment="mikhmon" and matching the date in source/name (independent of owner).
+ */
+function mikhmon_scripts_by_month($API, $idbl) {
+	$target = strtolower(trim((string)$idbl));
+	if ($target === '') {
+		return array();
+	}
+	$rows = $API->comm('/system/script/print', array(
+		'?comment' => 'mikhmon',
+	));
+	if (!is_array($rows)) {
+		return array();
+	}
+	$matched = array();
+	foreach ($rows as $row) {
+		if (!is_array($row)) {
+			continue;
+		}
+		if (mikhmon_script_month_year($row) === $target) {
+			$matched[] = $row;
+		}
+	}
+	return $matched;
+}
+
+/**
+ * Remove all Mikhmon record scripts belonging to a given "mmmYYYY" month.
+ */
+function mikhmon_remove_scripts_by_month($API, $idbl) {
+	$rows = mikhmon_scripts_by_month($API, $idbl);
+	foreach ($rows as $row) {
+		if (!empty($row['.id'])) {
+			$API->comm('/system/script/remove', array(
+				'.id' => $row['.id'],
+			));
+		}
+	}
 }
 
 ?>

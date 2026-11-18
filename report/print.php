@@ -81,16 +81,7 @@ if (!isset($_SESSION["mikhmon"])) {
 			}
 		} elseif (strlen($idbl) > "0") {
 			if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-				$API->write('/system/script/print', false);
-				$API->write('?owner=' . $idbl . '', false);
-				$API->write('=.proplist=.id');
-				$ARREMD = $API->read();
-				for ($i = 0; $i < count($ARREMD); $i++) {
-					$API->write('/system/script/remove', false);
-					$API->write('=.id=' . $ARREMD[$i]['.id']);
-					$READ = $API->read();
-
-				}
+				mikhmon_remove_scripts_by_month($API, $idbl);
 			}
 
 		}
@@ -116,9 +107,7 @@ if (!isset($_SESSION["mikhmon"])) {
 		$shd = "inline-block";
 	} elseif (strlen($idbl) > "0") {
 		if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-			$getData = $API->comm("/system/script/print", array(
-				"?owner" => "$idbl",
-			));
+			$getData = mikhmon_scripts_by_month($API, $idbl);
 			$TotalReg = count($getData);
 		}
 		$filedownload = $idbl;
@@ -134,16 +123,16 @@ if (!isset($_SESSION["mikhmon"])) {
 		$filedownload = "all";
 		$shf = "text";
 		$shd = "none";
-	} elseif (strlen($idbl) > "0" ) {
-		if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-			$getData = $API->comm("/system/script/print", array(
-				"?owner" => "$idbl",
-			));
+	}
+	if (!empty($_POST['selected_ids']) && is_array($getData)) {
+		$selIds = json_decode((string)$_POST['selected_ids'], true);
+		if (is_array($selIds) && !empty($selIds)) {
+			$selMap = array_flip(array_map('strval', $selIds));
+			$getData = array_values(array_filter($getData, function($row) use ($selMap) {
+				return isset($row['.id']) && isset($selMap[(string)$row['.id']]);
+			}));
 			$TotalReg = count($getData);
 		}
-		$filedownload = $idbl;
-		$shf = "hidden";
-		$shd = "inline-block";
 	}
 	
 }

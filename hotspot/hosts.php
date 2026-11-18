@@ -82,13 +82,6 @@ if (!isset($_SESSION["mikhmon"])) {
   <strong id="bulkCount">0</strong>&nbsp;selected:
   <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('remove')"><i class="fa fa-trash"></i> Remove</button>
 </div>
-<style>
-/* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
-   (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
-   ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
-#dataTable tbody tr.row-data { display: none; }
-</style>
-<noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
 <div class="overflow box-bordered mr-t-10" style="max-height: 75vh"> 	   	   
 <table id="dataTable" class="table table-bordered table-hover text-nowrap">
   <thead>
@@ -96,56 +89,49 @@ if (!isset($_SESSION["mikhmon"])) {
     <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
     <th style="width:50px; text-align:center;"></th>
     <th style="width:50px; text-align:center;"></th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> To Address</th>
-    <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
-	<th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
+    <th class="pointer" data-sort="mac" title="Click to sort"><i class="fa fa-sort"></i> MAC Address</th>
+    <th class="pointer" data-sort="addr" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
+    <th class="pointer" data-sort="toaddr" title="Click to sort"><i class="fa fa-sort"></i> To Address</th>
+    <th class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Server</th>
+	<th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?></th>
+  </tr>
   </thead>
-  <tbody>  	
-<?php
-for ($i = 0; $i < $TotalReg; $i++) {
-	$hosts = $gethosts[$i];
-	$id = $hosts['.id'];
-
-	$maca = $hosts['mac-address'];
-	$addr = $hosts['address'];
-	$toaddr = $hosts['to-address'];
-	$server = $hosts['server'];
-	$commt = $hosts['comment'];
-
-	$uriprocess = "'./?remove-host=" . $id . "&session=" . $session . "'";
-
-	echo "<tr class='row-data'>";
-	echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($maca, ENT_QUOTES) . "'></td>";
-	echo "<td style='text-align:center;'><span class='pointer'  title='Remove " . $maca . "' onclick=loadpage(".$uriprocess.")><i class='fa fa-minus-square text-danger'></i></span></td>";
-	echo "<td style='text-align:center;'>";
-	if ($hosts['authorized'] == "true" && $hosts['DHCP'] == "true") {
-		echo "<b class='text-success' title='A - authorized, H - DHCP'>A H</b>";
-	} elseif ($hosts['authorized'] == "true" && $hosts['dynamic'] == "true") {
-		echo "<b class='text-success' title='A - Authorized, D - dynamic'>A D</b>";
-	} elseif ($hosts['authorized'] == "true") {
-		echo "<b class='text-success' title='A - authorized'>A</b>";
-	} elseif ($hosts['DHCP'] == "true") {
-		echo "<b class='text-success' title='H - DHCP'>H</b>";
-	} elseif ($hosts['dynamic'] == "true") {
-		echo "<b class='text-success' title='D - dynamic'>D</b>";
-	} elseif ($hosts['bypassed'] == "true") {
-		echo "<b class='text-primary' title='P - Bypassed'>P</b>";
-	} else {
-	}
-	echo "</td>";
-	echo "<td>" . $maca . "</td>";
-	echo "<td>" . $addr . "</td>";
-	echo "<td>" . $toaddr . "</td>";
-	echo "<td>" . $server . "</td>";
-	echo "<td>" . $commt . "</td>";
-	echo "</tr>";
-}
-?>
-  </tbody>
+  <tbody id="tbody"></tbody>
 </table>
 </div>
+<?php
+$rowsData = array();
+for ($i = 0; $i < $TotalReg; $i++) {
+	$hosts = $gethosts[$i];
+	$flag = '';
+	$flagClass = '';
+	$flagTitle = '';
+	if (($hosts['authorized'] ?? '') == "true" && ($hosts['DHCP'] ?? '') == "true") {
+		$flag = 'A H'; $flagClass = 'text-success'; $flagTitle = 'A - authorized, H - DHCP';
+	} elseif (($hosts['authorized'] ?? '') == "true" && ($hosts['dynamic'] ?? '') == "true") {
+		$flag = 'A D'; $flagClass = 'text-success'; $flagTitle = 'A - Authorized, D - dynamic';
+	} elseif (($hosts['authorized'] ?? '') == "true") {
+		$flag = 'A'; $flagClass = 'text-success'; $flagTitle = 'A - authorized';
+	} elseif (($hosts['DHCP'] ?? '') == "true") {
+		$flag = 'H'; $flagClass = 'text-success'; $flagTitle = 'H - DHCP';
+	} elseif (($hosts['dynamic'] ?? '') == "true") {
+		$flag = 'D'; $flagClass = 'text-success'; $flagTitle = 'D - dynamic';
+	} elseif (($hosts['bypassed'] ?? '') == "true") {
+		$flag = 'P'; $flagClass = 'text-primary'; $flagTitle = 'P - Bypassed';
+	}
+	$rowsData[] = array(
+		'id' => $hosts['.id'] ?? '',
+		'mac' => $hosts['mac-address'] ?? '',
+		'addr' => $hosts['address'] ?? '',
+		'toaddr' => $hosts['to-address'] ?? '',
+		'srv' => $hosts['server'] ?? '',
+		'comm' => $hosts['comment'] ?? '',
+		'flag' => $flag,
+		'fcls' => $flagClass,
+		'ftitle' => $flagTitle,
+	);
+}
+?>
 
 <!-- Footer pagination -->
 <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -166,6 +152,27 @@ for ($i = 0; $i < $TotalReg; $i++) {
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-initTableView(100);
-initBulkUI('host');
+var HS_HOSTS_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var HS_SESSION = <?= json_encode($session); ?>;
+initBulkUI('host', { virtual: true });
+initVirtualTableView({
+  data: HS_HOSTS_DATA,
+  defaultPerPage: 100,
+  searchCols: ['mac', 'addr', 'toaddr', 'srv', 'comm', 'flag'],
+  renderRow: function(h, checked) {
+    var id = tvEsc(h.id), mac = tvEsc(h.mac);
+    var sessEnc = encodeURIComponent(HS_SESSION);
+    var flagHtml = h.flag ? '<b class="' + tvEsc(h.fcls) + '" title="' + tvEsc(h.ftitle) + '">' + tvEsc(h.flag) + '</b>' : '';
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + mac + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><span class="pointer" title="Remove ' + mac + '" onclick="loadpage(\'./?remove-host=' + id + '&session=' + sessEnc + '\')"><i class="fa fa-minus-square text-danger"></i></span></td>' +
+      '<td style="text-align:center;">' + flagHtml + '</td>' +
+      '<td>' + mac + '</td>' +
+      '<td>' + tvEsc(h.addr) + '</td>' +
+      '<td>' + tvEsc(h.toaddr) + '</td>' +
+      '<td>' + tvEsc(h.srv) + '</td>' +
+      '<td>' + tvEsc(h.comm) + '</td>' +
+      '</tr>';
+  }
+});
 </script>

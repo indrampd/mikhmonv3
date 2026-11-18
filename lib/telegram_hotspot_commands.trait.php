@@ -25,11 +25,11 @@ trait TelegramHotspotCommands
         }
 
         $html = "<b>🎫 Bot Voucher Hotspot</b>\n\n";
-        $html .= "<i>Semua perintah tanpa argumen menampilkan menu tombol.</i>\n\n";
+        $html .= "<i>Semua perintah tanpa argumen menampilkan daftar voucher langsung — tanpa pilih profil.</i>\n\n";
         $html .= "<b>Lihat:</b>\n";
-        $html .= "• /hscek <code>[kode]</code> — Detail voucher\n";
+        $html .= "• /hscek <code>[kode]</code> — Voucher online &amp; yang pernah dipakai\n";
+        $html .= "• /hslist <code>[profil]</code> — Semua voucher (berhalaman)\n";
         $html .= "• /hsonline — Sesi aktif + tombol putus sesi\n";
-        $html .= "• /hslist <code>[profil]</code> — Rekap voucher per profil\n";
         $html .= "<b>Aksi:</b>\n";
         $html .= "• /hskick <code>[kode]</code> — Putus sesi aktif\n";
         $html .= "• /hsreset <code>[kode]</code> — Reset counter pemakaian\n";
@@ -40,14 +40,14 @@ trait TelegramHotspotCommands
         $this->sendMessage($chat_id, $html);
     }
 
-    private function cmdHsCek($chat_id, $tg_id, $kode, $msg_id = null)
+    private function cmdHsCek($chat_id, $tg_id, $kode, $msg_id = null, $backCb = null, $backLabel = '🔙 Voucher terpakai')
     {
         if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
             $this->sendMessage($chat_id, "⛔ Anda tidak memiliki izin.");
             return;
         }
         if (empty($kode)) {
-            // Menu interaktif: pilih profil lalu voucher — tanpa ketik manual.
+            // Langsung daftar voucher terpakai — tanpa pilih profil.
             $this->cmdHsList($chat_id, $tg_id, '', $msg_id, 'hscek');
             return;
         }
@@ -69,7 +69,7 @@ trait TelegramHotspotCommands
         $active = (is_array($actives) && !empty($actives[0])) ? $actives[0] : null;
         $api->disconnect();
 
-        $this->hsRenderDetail($chat_id, $msg_id, $tg_id, $user, $active);
+        $this->hsRenderDetail($chat_id, $msg_id, $tg_id, $user, $active, $backCb, $backLabel);
     }
 
     private function cmdHsOnline($chat_id, $tg_id, $msg_id = null)
@@ -114,7 +114,8 @@ trait TelegramHotspotCommands
 
         $keyboard = array_chunk($kick_rows, 2);
         $keyboard[] = array(
-            array('text' => '🔄 Refresh', 'callback_data' => 'hsonline')
+            array('text' => '🔄 Refresh', 'callback_data' => 'hsonline'),
+            array('text' => '❌ Batal', 'callback_data' => 'batal')
         );
 
         if (!empty($msg_id)) {
@@ -124,7 +125,14 @@ trait TelegramHotspotCommands
         }
     }
 
-    private function cmdHsList($chat_id, $tg_id, $profile, $msg_id = null, $mode = 'hscek')
+    /**
+     * Flat voucher list shared by every /hs* picker — no profile submenu.
+     *   hscek   → vouchers that are online or were already used
+     *   hslist  → all vouchers (optional profile filter via /hslist <profil>)
+     *   hsreset → all vouchers (reset works in any state)
+     *   hsdel   → all vouchers
+     */
+    private function cmdHsList($chat_id, $tg_id, $profile, $msg_id = null, $mode = 'hslist', $page = 1)
     {
         if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
             $this->sendMessage($chat_id, "⛔ Anda tidak memiliki izin.");
@@ -138,80 +146,101 @@ trait TelegramHotspotCommands
         }
 
         $sum = MikhmonHotspotBilling::summarize($api, $profile);
-        $profiles = $sum['profiles'];
         $api->disconnect();
 
-        // No profile given: overview + per-profile buttons. Also reached via
-        // callback (🔙 Semua profil / 🔙 Daftar voucher), so it must render
-        // regardless of $msg_id and edit the message in place.
-        if (empty($profile)) {
+        // hsp:<c|s|r|d>:<page>[:<profile>] keeps each picker on its own page.
+        $modeCodes = array('hscek' => 'c', 'hslist' => 's', 'hsreset' => 'r', 'hsdel' => 'd');
+        $mcode = $modeCodes[$mode] ?? 's';
+        $pager = 'hsp:' . $mcode;
+
+        $items = array();
+        $online = 0;
+        foreach ($sum['users'] as $u) {
+            $code = $u['status']['code'] ?? '';
+            if ($mode === 'hscek' && empty($u['used'])) continue;
+            if ($code === 'active') $online++;
+            $items[] = $u;
+        }
+        // Online vouchers first, then the rest alphabetically.
+        usort($items, function ($a, $b) {
+            $oa = (($a['status']['code'] ?? '') === 'active') ? 0 : 1;
+            $ob = (($b['status']['code'] ?? '') === 'active') ? 0 : 1;
+            return ($oa === $ob) ? strcmp($a['name'] ?? '', $b['name'] ?? '') : $oa - $ob;
+        });
+
+        $perPage = 20;
+        $totalItems = count($items);
+        $pages = max(1, (int)ceil($totalItems / $perPage));
+        $page = max(1, min((int)$page, $pages));
+        $slice = array_slice($items, ($page - 1) * $perPage, $perPage);
+
+        $profile = trim((string)$profile);
+        $suffix = ($profile === '') ? '' : ':' . $profile;
+
+        if ($mode === 'hscek') {
+            $html = "🎫 <b>Voucher Terpakai</b>\n";
+            $html .= "🟢 Online <b>{$online}</b> · ⚪ Offline <b>" . ($totalItems - $online) . "</b> · Total <b>{$totalItems}</b>\n";
+        } elseif ($mode === 'hsreset') {
+            $html = "♻️ <b>Reset Counter Voucher</b>\n";
+            $html .= "Total <b>{$totalItems}</b>\n";
+        } elseif ($mode === 'hsdel') {
+            $html = "🗑 <b>Hapus Voucher</b>\n";
+            $html .= "Total <b>{$totalItems}</b>\n";
+        } else {
             $c = $sum['counts'];
-            $html = "📊 <b>Rekap Voucher Hotspot</b>\n";
-            $html .= "Total: <b>" . count($sum['users']) . "</b>\n";
-            $html .= "⚪ Belum terpakai : <b>{$c['unused']}</b>\n";
-            $html .= "🟢 Aktif online   : <b>{$c['active']}</b>\n";
-            $html .= "🔵 Tidak online   : <b>{$c['idle']}</b>\n";
-            $html .= "🔴 Habis          : <b>{$c['exhausted']}</b>\n";
-            if ($c['expired'] > 0) $html .= "⌛ Kedaluwarsa    : <b>{$c['expired']}</b>\n";
-            if ($c['disabled'] > 0) $html .= "⛔ Nonaktif       : <b>{$c['disabled']}</b>\n";
-
-            $keyboard = array();
-            $row = array();
-            foreach (array_slice($profiles, 0, 12) as $p) {
-                $row[] = array('text' => $p, 'callback_data' => 'hslist:' . $p);
-                if (count($row) === 2) {
-                    $keyboard[] = $row;
-                    $row = array();
-                }
-            }
-            if (!empty($row)) $keyboard[] = $row;
-            $keyboard[] = array(array('text' => '🔄 Refresh', 'callback_data' => 'hslist:overview'));
-
-            if (!empty($msg_id)) {
-                $this->editMessageText($chat_id, $msg_id, $html, array('inline_keyboard' => $keyboard));
-            } else {
-                $this->sendMessage($chat_id, $html, array('inline_keyboard' => $keyboard));
-            }
-            return;
+            $html = "📋 <b>Semua Voucher</b>";
+            if ($profile !== '') $html .= " — " . htmlspecialchars($profile);
+            $html .= "\nTotal <b>{$totalItems}</b> · 🟢 Online <b>{$c['active']}</b> · ⚪ Belum terpakai <b>{$c['unused']}</b>\n";
+        }
+        if ($pages > 1) {
+            $html .= "📄 Halaman <b>{$page}</b>/{$pages}\n";
+        }
+        if ($totalItems === 0) {
+            $html .= "\n<i>" . ($mode === 'hscek'
+                ? 'Belum ada voucher yang pernah dipakai.'
+                : 'Tidak ada voucher.') . "</i>";
+        } elseif ($mode === 'hscek' || $mode === 'hslist') {
+            $html .= "\n<i>Pilih voucher untuk melihat detail:</i>";
+        } elseif ($mode === 'hsreset') {
+            $html .= "\n<i>Pilih voucher untuk reset counter:</i>";
+        } else {
+            $html .= "\n<i>Pilih voucher untuk dihapus:</i>";
         }
 
-        // Profile recap.
-        $c = $sum['counts'];
-        $label = empty($profile) ? 'Semua Profil' : htmlspecialchars($profile);
-        $html = "📊 <b>Rekap Voucher — {$label}</b>\n";
-        $html .= "Total: <b>" . count($sum['users']) . "</b>\n";
-        $html .= "⚪ Belum terpakai : <b>{$c['unused']}</b>\n";
-        $html .= "🟢 Aktif online   : <b>{$c['active']}</b>\n";
-        $html .= "🔵 Tidak online   : <b>{$c['idle']}</b>\n";
-        $html .= "🔴 Habis          : <b>{$c['exhausted']}</b>\n";
-        if ($c['expired'] > 0) $html .= "⌛ Kedaluwarsa    : <b>{$c['expired']}</b>\n";
-        if ($c['disabled'] > 0) $html .= "⛔ Nonaktif       : <b>{$c['disabled']}</b>\n";
-
-        $hints = array(
-            'hscek' => 'Pilih voucher untuk melihat detail:',
-            'hskick' => 'Pilih voucher untuk diputus sesinya:',
-            'hsreset' => 'Pilih voucher untuk reset counter:',
-            'hsdel' => 'Pilih voucher untuk dihapus:'
-        );
-        $html .= "\n<i>" . ($hints[$mode] ?? 'Pilih voucher:') . "</i>";
-
-        // Buttons open the requested action for each voucher (cek/kick/reset/del).
-        // For hsdel everything is listed; for the other modes skip dead vouchers.
         $keyboard = array();
         $row = array();
-        $shown = 0;
-        foreach ($sum['users'] as $u) {
-            if ($shown >= 20) break;
-            if ($mode !== 'hsdel' && in_array($u['status']['code'], array('exhausted', 'expired', 'disabled'), true)) continue;
-            $row[] = array('text' => $u['name'], 'callback_data' => $mode . ':' . $u['name']);
+        foreach ($slice as $u) {
+            $stat = $u['status'];
+            if ($mode === 'hsreset' || $mode === 'hsdel') {
+                $cbData = $mode . ':' . $u['name'];
+            } else {
+                // Detail returns to this exact page after viewing.
+                $ctx = 'hscek:' . $mcode . ':' . $page . $suffix . '|' . $u['name'];
+                $cbData = (strlen($ctx) <= 64) ? $ctx : 'hscek:' . $u['name'];
+            }
+            $row[] = array('text' => $stat['icon'] . ' ' . $u['name'], 'callback_data' => $cbData);
             if (count($row) === 2) {
                 $keyboard[] = $row;
                 $row = array();
             }
-            $shown++;
         }
         if (!empty($row)) $keyboard[] = $row;
-        $keyboard[] = array(array('text' => '🔙 Semua profil', 'callback_data' => 'hslist:overview'));
+
+        if ($pages > 1) {
+            $nav = array();
+            if ($page > 1) {
+                $nav[] = array('text' => '◀️ Sebelumnya', 'callback_data' => $pager . ':' . ($page - 1) . $suffix);
+            }
+            if ($page < $pages) {
+                $nav[] = array('text' => 'Berikutnya ▶️', 'callback_data' => $pager . ':' . ($page + 1) . $suffix);
+            }
+            $keyboard[] = $nav;
+        }
+
+        $keyboard[] = array(
+            array('text' => '🔄 Refresh', 'callback_data' => $pager . ':' . $page . $suffix),
+            array('text' => '❌ Batal', 'callback_data' => 'batal')
+        );
 
         if (!empty($msg_id)) {
             $this->editMessageText($chat_id, $msg_id, $html, array('inline_keyboard' => $keyboard));
@@ -227,8 +256,8 @@ trait TelegramHotspotCommands
             return;
         }
         if (empty($kode)) {
-            // Menu interaktif: pilih dari sesi yang sedang online.
-            $this->hsShowKickPicker($chat_id, $msg_id);
+            // Sesi online sudah punya tombol putus — pakai daftar yang sama.
+            $this->cmdHsOnline($chat_id, $tg_id, $msg_id);
             return;
         }
 
@@ -257,9 +286,9 @@ trait TelegramHotspotCommands
         }
 
         if (!empty($msg_id)) {
-            $this->editMessageText($chat_id, $msg_id, $html);
+            $this->editMessageText($chat_id, $msg_id, $html, array('inline_keyboard' => array($this->hsBackRow('hsonline', '🔙 Sesi online'))));
         } else {
-            $this->sendMessage($chat_id, $html);
+            $this->sendMessage($chat_id, $html, array('inline_keyboard' => array($this->hsBackRow('hsonline', '🔙 Sesi online'))));
         }
     }
 
@@ -270,7 +299,7 @@ trait TelegramHotspotCommands
             return;
         }
         if (empty($kode)) {
-            // Menu interaktif: pilih voucher — tanpa ketik manual.
+            // Langsung daftar voucher — tanpa pilih profil.
             $this->cmdHsList($chat_id, $tg_id, '', $msg_id, 'hsreset');
             return;
         }
@@ -293,10 +322,11 @@ trait TelegramHotspotCommands
         $api->disconnect();
 
         $html = "♻️ <b>{$user['name']}</b> — counter pemakaian direset oleh @{$sender_name}.";
+        $kb = array('inline_keyboard' => array($this->hsBackRow('hsp:r:1', '🔙 Daftar voucher')));
         if (!empty($msg_id)) {
-            $this->editMessageText($chat_id, $msg_id, $html);
+            $this->editMessageText($chat_id, $msg_id, $html, $kb);
         } else {
-            $this->sendMessage($chat_id, $html);
+            $this->sendMessage($chat_id, $html, $kb);
         }
     }
 
@@ -385,7 +415,9 @@ trait TelegramHotspotCommands
         $html .= "User = password:\n";
         $html .= "<code>" . htmlspecialchars(implode("\n", $lines)) . "</code>\n";
         $html .= "Diproses oleh @{$sender_name}";
-        $this->sendMessage($chat_id, $html);
+        $this->sendMessage($chat_id, $html, array('inline_keyboard' => array(
+            array(array('text' => '❌ Tutup', 'callback_data' => 'tutup'))
+        )));
     }
 
     private function cmdHsDel($chat_id, $tg_id, $kode, $msg_id = null)
@@ -395,7 +427,7 @@ trait TelegramHotspotCommands
             return;
         }
         if (empty($kode)) {
-            // Menu interaktif: daftar voucher (semua status) untuk dihapus.
+            // Langsung daftar voucher — tanpa pilih profil.
             $this->cmdHsList($chat_id, $tg_id, '', $msg_id, 'hsdel');
             return;
         }
@@ -429,7 +461,7 @@ trait TelegramHotspotCommands
                 array('text' => '❌ Batal', 'callback_data' => 'batal')
             ),
             array(
-                array('text' => '🔙 Daftar voucher', 'callback_data' => 'hslist:overview')
+                array('text' => '🔙 Daftar voucher', 'callback_data' => 'hsp:d:1')
             )
         );
 
@@ -470,18 +502,51 @@ trait TelegramHotspotCommands
             return true;
         }
 
+        // hsp: pagination/back for any picker mode:
+        //   hsp:<c|s|r|d>:<page>[:<profile>]
+        // c=hscek (used vouchers), s=hslist (all), r=hsreset, d=hsdel.
+        // "overview" is accepted for buttons left over from older messages.
+        if (str_starts_with($data, 'hsp:')) {
+            if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
+                $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
+                return true;
+            }
+            $rest = substr($data, 4);
+            $parts = explode(':', $rest, 3);
+            $modeMap = array('c' => 'hscek', 's' => 'hslist', 'r' => 'hsreset', 'd' => 'hsdel');
+            $mode = $modeMap[$parts[0] ?? ''] ?? 'hslist';
+            $page = 1;
+            $profile = '';
+            if (($parts[1] ?? '') !== '' && ($parts[1] ?? '') !== 'overview') {
+                if (ctype_digit($parts[1])) $page = (int)$parts[1];
+                $profile = $parts[2] ?? '';
+            }
+            $this->answerCallback($cb_id, 'Memuat...');
+            $this->cmdHsList($chat_id, $tg_id, $profile, $msg_id, $mode, $page);
+            return true;
+        }
+
+        // hslist: all vouchers (/hslist). hslist:overview or hslist:<page>:<profile>
+        // Old messages may still carry hslist:<profile> without a page number.
         if (str_starts_with($data, 'hslist:')) {
             if (!$this->isAuthorized($tg_id, $chat_id, 'lihat')) {
                 $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
                 return true;
             }
-            $profile = substr($data, 7);
-            $this->answerCallback($cb_id, 'Memuat rekap...');
-            if ($profile === 'overview') {
-                $this->cmdHsList($chat_id, $tg_id, '', $msg_id);
-            } else {
-                $this->cmdHsList($chat_id, $tg_id, $profile, $msg_id);
+            $rest = substr($data, 7);
+            $page = 1;
+            $profile = '';
+            if ($rest !== 'overview') {
+                $parts = explode(':', $rest, 2);
+                if (count($parts) === 2 && ctype_digit($parts[0])) {
+                    $page = (int)$parts[0];
+                    $profile = $parts[1];
+                } else {
+                    $profile = $rest;
+                }
             }
+            $this->answerCallback($cb_id, 'Memuat rekap...');
+            $this->cmdHsList($chat_id, $tg_id, $profile, $msg_id, 'hslist', $page);
             return true;
         }
 
@@ -490,9 +555,27 @@ trait TelegramHotspotCommands
                 $this->answerCallback($cb_id, '⛔ Tidak memiliki izin!', true);
                 return true;
             }
-            $kode = substr($data, 6);
+            $rest = substr($data, 6);
+            $kode = $rest;
+            $backCb = null;
+            $backLabel = '🔙 Voucher terpakai';
+            // Buttons carry their origin: hscek:<c|s>:<page>[:<profile>]|<kode>
+            $sep = strpos($rest, '|');
+            if ($sep !== false) {
+                $ctx = substr($rest, 0, $sep);
+                $kode = substr($rest, $sep + 1);
+                $parts = explode(':', $ctx, 3);
+                $m = ($parts[0] ?? 'c') === 's' ? 's' : 'c';
+                $pg = (isset($parts[1]) && ctype_digit($parts[1])) ? (int)$parts[1] : 1;
+                $pr = $parts[2] ?? '';
+                if ($m === 's') {
+                    $backLabel = '🔙 Daftar voucher';
+                }
+                $backCb = 'hsp:' . $m . ':' . $pg . ($pr === '' ? '' : ':' . $pr);
+                if (strlen($backCb) > 64) $backCb = 'hsp:' . $m . ':1';
+            }
             $this->answerCallback($cb_id, "Memuat {$kode}...");
-            $this->cmdHsCek($chat_id, $tg_id, $kode, $msg_id);
+            $this->cmdHsCek($chat_id, $tg_id, $kode, $msg_id, $backCb, $backLabel);
             return true;
         }
 
@@ -552,7 +635,7 @@ trait TelegramHotspotCommands
             if ($name === '') {
                 $api->disconnect();
                 $this->answerCallback($cb_id, 'Voucher sudah tidak ada.', true);
-                $this->editMessageText($chat_id, $msg_id, "<i>Voucher sudah tidak ada.</i>");
+                $this->editMessageText($chat_id, $msg_id, "<i>Voucher sudah tidak ada.</i>", array('inline_keyboard' => array($this->hsBackRow('hsp:d:1', '🔙 Daftar voucher'))));
                 return true;
             }
             MikhmonHotspotBilling::deleteUser($api, $uid);
@@ -561,7 +644,12 @@ trait TelegramHotspotCommands
             $api->disconnect();
 
             $this->answerCallback($cb_id, "🗑 {$name} dihapus!");
-            $this->editMessageText($chat_id, $msg_id, "🗑 Voucher <b>" . htmlspecialchars($name) . "</b> telah dihapus oleh @{$sender_name}.");
+            $this->editMessageText(
+                $chat_id,
+                $msg_id,
+                "🗑 Voucher <b>" . htmlspecialchars($name) . "</b> telah dihapus oleh @{$sender_name}.",
+                array('inline_keyboard' => array($this->hsBackRow('hsp:d:1', '🔙 Daftar voucher')))
+            );
             return true;
         }
 
@@ -611,7 +699,7 @@ trait TelegramHotspotCommands
                 return true;
             }
             $this->answerCallback($cb_id, 'Memperbarui sesi...');
-            $this->hsShowKickPicker($chat_id, $msg_id);
+            $this->cmdHsOnline($chat_id, $tg_id, $msg_id);
             return true;
         }
 
@@ -630,7 +718,7 @@ trait TelegramHotspotCommands
             $user = $this->hsFindById($api, $uid);
             if ($user === null) {
                 $api->disconnect();
-                $this->editMessageText($chat_id, $msg_id, "<i>Voucher sudah tidak ada.</i>");
+                $this->editMessageText($chat_id, $msg_id, "<i>Voucher sudah tidak ada.</i>", array('inline_keyboard' => array($this->hsBackRow())));
                 return true;
             }
             $actives = $api->comm('/ip/hotspot/active/print', array('?user' => $user['name']));
@@ -646,52 +734,6 @@ trait TelegramHotspotCommands
     /* ==========================================================
      * Helpers
      * ========================================================== */
-
-    private function hsShowKickPicker($chat_id, $msg_id = null)
-    {
-        $api = $this->getRouterAPI();
-        if (!$api) {
-            $this->sendMessage($chat_id, "⚠️ Gagal terhubung ke RouterOS.");
-            return;
-        }
-
-        $actives = $api->comm('/ip/hotspot/active/print');
-        $api->disconnect();
-        $actives = is_array($actives) ? $actives : array();
-
-        $html = "🔌 <b>Putus Sesi — pilih sesi aktif:</b>\n";
-        $html .= "Total online: <b>" . count($actives) . "</b>";
-
-        $keyboard = array();
-        $row = array();
-        $shown = 0;
-        foreach ($actives as $a) {
-            if ($shown >= 20) break;
-            $u = $a['user'] ?? '';
-            if ($u === '') continue;
-            $row[] = array('text' => '🔌 ' . $u . ' (' . ($a['uptime'] ?? '-') . ')', 'callback_data' => 'hskick:' . $u);
-            if (count($row) === 2) {
-                $keyboard[] = $row;
-                $row = array();
-            }
-            $shown++;
-        }
-        if (!empty($row)) $keyboard[] = $row;
-        if (count($actives) > $shown) {
-            $html .= "\n<i>Menampilkan {$shown} dari " . count($actives) . " sesi.</i>";
-        }
-        if (empty($keyboard)) {
-            $html .= "\n\n<i>Tidak ada sesi aktif saat ini.</i>";
-        }
-        $keyboard[] = array(array('text' => '🔄 Refresh', 'callback_data' => 'hskickpick'));
-        $keyboard[] = array(array('text' => '❌ Batal', 'callback_data' => 'batal'));
-
-        if (!empty($msg_id)) {
-            $this->editMessageText($chat_id, $msg_id, $html, array('inline_keyboard' => $keyboard));
-        } else {
-            $this->sendMessage($chat_id, $html, array('inline_keyboard' => $keyboard));
-        }
-    }
 
     private function hsShowQtyPicker($chat_id, $msg_id, $profile)
     {
@@ -747,7 +789,20 @@ trait TelegramHotspotCommands
         return null;
     }
 
-    private function hsRenderDetail($chat_id, $msg_id, $tg_id, $user, $active)
+    /**
+     * Back row shared by detail and action-result screens so a flow never
+     * dead-ends. Defaults to the flat voucher list, and always offers Batal
+     * to close the interactive message.
+     */
+    private function hsBackRow($backCb = 'hsp:c:1', $backLabel = '🔙 Voucher terpakai')
+    {
+        return array(
+            array('text' => $backLabel, 'callback_data' => $backCb),
+            array('text' => '❌ Batal', 'callback_data' => 'batal')
+        );
+    }
+
+    private function hsRenderDetail($chat_id, $msg_id, $tg_id, $user, $active, $backCb = null, $backLabel = '🔙 Voucher terpakai')
     {
         $name = htmlspecialchars($user['name'] ?? '');
         $stat = MikhmonHotspotBilling::getStatus($user, $active);
@@ -790,7 +845,7 @@ trait TelegramHotspotCommands
             $btns[] = array(array('text' => '🗑 Hapus', 'callback_data' => 'hsdel:' . $user['name']));
         }
         $btns[] = array(array('text' => '🔄 Refresh', 'callback_data' => 'hsrefresh:' . $user['.id']));
-        $btns[] = array(array('text' => '🔙 Daftar voucher', 'callback_data' => 'hslist:overview'));
+        $btns[] = $this->hsBackRow($backCb !== null ? $backCb : 'hsp:c:1', $backLabel);
         $reply_markup = array('inline_keyboard' => $btns);
 
         if (!empty($msg_id)) {

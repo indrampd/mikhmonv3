@@ -39,9 +39,7 @@ if (!isset($_SESSION["mikhmon"])) {
 		$shd = "text";
 	} elseif (strlen($idbl) > "0") {
 		if ($API->connect($iphost, $userhost, decrypt($passwdhost))) {
-			$API->write('/system/script/print', false);
-			$API->write('?=owner=' . $idbl . '');
-			$ARRAY = $API->read();
+			$ARRAY = mikhmon_scripts_by_month($API, $idbl);
 			$API->disconnect();
 		}
 		$filedownload = $idbl;

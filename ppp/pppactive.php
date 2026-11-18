@@ -57,62 +57,40 @@ $TotalReg = count($getactive);
     <button type="button" class="btn bg-danger radius-3 pd-5" onclick="bulkAct('kick')"><i class="fa fa-plug"></i> Kick / Putuskan</button>
   </div>
 
-  <style>
-  /* Anti-flash: baris disembunyikan sampai initTableView() mem-apply pagination
-     (fungsi itu selalu set display eksplisit per baris, jadi setelah init aturan
-     ini tidak berpengaruh). Mencegah kedipan tabel polos saat script dimuat. */
-  #dataTable tbody tr.row-data { display: none; }
-  </style>
-  <noscript><style>#dataTable tbody tr.row-data { display: table-row; }</style></noscript>
   <div class="overflow mr-t-10 box-bordered" style="max-height: 75vh">
   <table id="dataTable" class="table table-bordered table-hover text-nowrap">
     <thead>
       <tr>
         <th style="width:30px; text-align:center;" title="Select all on this page"><input type="checkbox" onclick="toggleAllChecks(this)"></th>
         <th style="width:50px; text-align:center;" id="cuser"><?= $TotalReg; ?></th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Service</th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_name ?? "User" ?></th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Caller ID (MAC)</th>
-        <th class="text-right pointer" title="Click to sort"><i class="fa fa-sort"></i> Uptime</th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> Encoding</th>
-        <th class="pointer" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?? "Comment" ?></th>
+        <th class="pointer" data-sort="srv" title="Click to sort"><i class="fa fa-sort"></i> Service</th>
+        <th class="pointer" data-sort="user" title="Click to sort"><i class="fa fa-sort"></i> <?= $_name ?? "User" ?></th>
+        <th class="pointer" data-sort="addr" title="Click to sort"><i class="fa fa-sort"></i> Address</th>
+        <th class="pointer" data-sort="caller" title="Click to sort"><i class="fa fa-sort"></i> Caller ID (MAC)</th>
+        <th class="text-right pointer" data-sort="up" title="Click to sort"><i class="fa fa-sort"></i> Uptime</th>
+        <th class="pointer" data-sort="enc" title="Click to sort"><i class="fa fa-sort"></i> Encoding</th>
+        <th class="pointer" data-sort="comm" title="Click to sort"><i class="fa fa-sort"></i> <?= $_comment ?? "Comment" ?></th>
       </tr>
     </thead>
-    <tbody id="tbody">
-      <?php
-      for ($i = 0; $i < $TotalReg; $i++) {
-          $act = $getactive[$i];
-          $id = $act['.id'];
-          $user = $act['name'];
-          $service = $act['service'] ?? 'pppoe';
-          $caller = $act['caller-id'] ?? '-';
-          $address = $act['address'] ?? '-';
-          $uptime = formatDTM($act['uptime']);
-          $encoding = $act['encoding'] ?? '-';
-          $comment = $act['comment'] ?? '';
-
-          $uriprocess = "'./?remove-pactive=" . urlencode($id) . "&session=" . $session . "'";
-
-          echo "<tr class='row-data'>";
-          echo "<td style='text-align:center;'><input type='checkbox' class='row-check' data-id='" . htmlspecialchars($id, ENT_QUOTES) . "' data-name='" . htmlspecialchars($user, ENT_QUOTES) . "'></td>";
-          echo "<td style='text-align:center;'>";
-          echo "<span class='pointer' title='Putuskan Sesi " . htmlspecialchars($user) . "' onclick=\"if(confirm('Putuskan koneksi (" . addslashes($user) . ")?')){loadpage(" . $uriprocess . ");loader();}else{}\"><i class='fa fa-minus-square text-danger'></i></span>";
-          echo "</td>";
-
-          echo "<td><span class='badge bg-info'>" . htmlspecialchars($service) . "</span></td>";
-          echo "<td><a title='Open Secret " . htmlspecialchars($user) . "' href='./?secret=" . urlencode($user) . "&session=" . $session . "'><i class='fa fa-edit'></i> " . htmlspecialchars($user) . "</a></td>";
-          echo "<td>" . htmlspecialchars($address) . "</td>";
-          echo "<td><code>" . htmlspecialchars($caller) . "</code></td>";
-          echo "<td class='text-right'>" . htmlspecialchars($uptime) . "</td>";
-          echo "<td>" . htmlspecialchars($encoding) . "</td>";
-          echo "<td>" . htmlspecialchars($comment) . "</td>";
-          echo "</tr>";
-      }
-      ?>
-    </tbody>
+    <tbody id="tbody"></tbody>
   </table>
   </div>
+  <?php
+  $rowsData = array();
+  for ($i = 0; $i < $TotalReg; $i++) {
+      $act = $getactive[$i];
+      $rowsData[] = array(
+          'id' => $act['.id'] ?? '',
+          'user' => $act['name'] ?? '',
+          'srv' => $act['service'] ?? 'pppoe',
+          'caller' => $act['caller-id'] ?? '-',
+          'addr' => $act['address'] ?? '-',
+          'up' => formatDTM($act['uptime'] ?? ''),
+          'enc' => $act['encoding'] ?? '-',
+          'comm' => $act['comment'] ?? '',
+      );
+  }
+  ?>
 
   <!-- Footer pagination -->
   <div class="pd-t-5" style="display:flex; flex-wrap:wrap; align-items:center; gap:10px; justify-content:space-between;">
@@ -134,6 +112,27 @@ $TotalReg = count($getactive);
 
 <script src="./js/tableview.js?v=<?= @filemtime(dirname(__DIR__) . '/js/tableview.js'); ?>"></script>
 <script>
-initTableView(100);
-initBulkUI('ppp-active');
+var PPP_ACTIVE_DATA = <?= json_encode($rowsData, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+var PPP_SESSION = <?= json_encode($session); ?>;
+initBulkUI('ppp-active', { virtual: true });
+initVirtualTableView({
+  data: PPP_ACTIVE_DATA,
+  defaultPerPage: 100,
+  searchCols: ['srv', 'user', 'addr', 'caller', 'enc', 'comm'],
+  renderRow: function(a, checked) {
+    var id = tvEsc(a.id), user = tvEsc(a.user);
+    var sessEnc = encodeURIComponent(PPP_SESSION);
+    return '<tr class="row-data">' +
+      '<td style="text-align:center;"><input type="checkbox" class="row-check" data-id="' + id + '" data-name="' + user + '"' + (checked ? ' checked' : '') + '></td>' +
+      '<td style="text-align:center;"><span class="pointer" title="Putuskan Sesi ' + user + '" onclick="if(confirm(\'Putuskan koneksi (' + user + ')?\')){loadpage(\'./?remove-pactive=' + encodeURIComponent(a.id) + '&session=' + sessEnc + '\');loader();}"><i class="fa fa-minus-square text-danger"></i></span></td>' +
+      '<td><span class="badge bg-info">' + tvEsc(a.srv) + '</span></td>' +
+      '<td><a title="Open Secret ' + user + '" href="./?secret=' + encodeURIComponent(a.user) + '&session=' + sessEnc + '"><i class="fa fa-edit"></i> ' + user + '</a></td>' +
+      '<td>' + tvEsc(a.addr) + '</td>' +
+      '<td><code>' + tvEsc(a.caller) + '</code></td>' +
+      '<td class="text-right">' + tvEsc(a.up) + '</td>' +
+      '<td>' + tvEsc(a.enc) + '</td>' +
+      '<td>' + tvEsc(a.comm) + '</td>' +
+      '</tr>';
+  }
+});
 </script>
