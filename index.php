@@ -21,6 +21,39 @@ error_reporting(0);
 // Gzip is handled by Nginx
 // ob_start("ob_gzhandler");
 
+/*
+ * Pelanggan terisolir diarahkan ke portal sebelum login/session diproses.
+ * Subnet dibaca langsung dari data/bot_config.json (bukan geo nginx) supaya
+ * perubahan "Subnet Isolir" di dashboard berlaku tanpa reload nginx.
+ */
+if (!function_exists('mikhmon_ip_in_cidr')) {
+  function mikhmon_ip_in_cidr($ip, $cidr) {
+    $parts = explode('/', trim((string)$cidr), 2);
+    if (count($parts) !== 2) return false;
+    $ip_long = ip2long($ip);
+    $net_long = ip2long($parts[0]);
+    $bits = (int)$parts[1];
+    if ($ip_long === false || $net_long === false || $bits < 0 || $bits > 32) return false;
+    $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
+    return ($ip_long & $mask) === ($net_long & $mask);
+  }
+}
+if (in_array($_SERVER['REQUEST_METHOD'] ?? 'GET', array('GET', 'HEAD'), true)) {
+  $iso_net = '';
+  $iso_cfg_file = __DIR__ . '/data/bot_config.json';
+  if (is_readable($iso_cfg_file)) {
+    $iso_cfg_json = json_decode((string)@file_get_contents($iso_cfg_file), true);
+    if (is_array($iso_cfg_json)) {
+      $iso_net = (string)($iso_cfg_json['portal']['network'] ?? '');
+    }
+  }
+  $client_ip = $_SERVER['REMOTE_ADDR'] ?? '';
+  if ($iso_net !== '' && $client_ip !== '' && mikhmon_ip_in_cidr($client_ip, $iso_net)) {
+    header('Location: /isolir/index.php');
+    exit;
+  }
+}
+
 $url = $_SERVER['REQUEST_URI'] ?? '';
 
 // load session MikroTik

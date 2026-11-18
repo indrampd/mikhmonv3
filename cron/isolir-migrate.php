@@ -10,7 +10,7 @@
  *
  * Langkah:
  *   1. /ip pool add <pool> (rentang dari <network>)
- *   2. Static DHCP lease server (IP <server_ip>, MAC <server_mac>)
+ *   2. Static DHCP lease server (hanya bila server ada di jaringan DHCP router)
  *   3. /ppp profile set <isolir_profile> remote-address=<pool>
  *   4. /ip firewall nat add dst-nat <network>:80 -> server:<server_port>
  *   5. /system scheduler set isolir-harian disabled=yes (jika masih ada)
@@ -24,6 +24,10 @@ if (PHP_SAPI !== 'cli') {
     http_response_code(403);
     exit('CLI only');
 }
+
+// include/config.php (fallback kredensial router) membaca REQUEST_URI; di CLI
+// kunci itu tidak ada dan hanya memunculkan warning di output migrasi.
+$_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '';
 
 require_once dirname(__DIR__) . '/lib/billing.class.php';
 require_once dirname(__DIR__) . '/lib/isolir_engine.class.php';
@@ -52,10 +56,23 @@ MIG_define('MIG_PROFILE', $optVal('profile', 'profile', MikhmonBilling::getConfi
 
 function MIG_define($name, $value) { if (!defined($name)) define($name, $value); }
 
-if (MIG_SERVER_IP === '' || MIG_SERVER_MAC === '') {
-    echo "ERROR: server_ip dan server_mac wajib diisi.\n";
+// Apakah $ip berada di subnet $cidr? Dipakai untuk memutuskan perlu-tidaknya
+// lease DHCP statis: hanya server yang IP-nya dari DHCP LAN yang butuh lease.
+function MIG_ip_in_cidr($ip, $cidr) {
+    $parts = explode('/', trim((string)$cidr), 2);
+    if (count($parts) !== 2) return false;
+    $ip_long = ip2long($ip);
+    $net_long = ip2long($parts[0]);
+    $bits = (int)$parts[1];
+    if ($ip_long === false || $net_long === false || $bits < 0 || $bits > 32) return false;
+    $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
+    return ($ip_long & $mask) === ($net_long & $mask);
+}
+
+if (MIG_SERVER_IP === '') {
+    echo "ERROR: server_ip wajib diisi.\n";
     echo "Isi di dashboard (Billing & Bot Telegram -> Portal Isolir), atau seksi 'portal'\n";
-    echo "di data/bot_config.json, atau kirim --server-ip=<ip> --server-mac=<mac>.\n";
+    echo "di data/bot_config.json, atau kirim --server-ip=<ip>.\n";
     exit(1);
 }
 
@@ -104,26 +121,46 @@ if (is_array($pool) && !empty($pool[0])) {
     }
 }
 
-// 2. Static DHCP lease server
-$lease = $api->comm('/ip/dhcp-server/lease/print', array('?address' => MIG_SERVER_IP));
-if (is_array($lease) && !empty($lease[0])) {
-    $dynamic = ($lease[0]['dynamic'] ?? 'false') === 'true';
-    if ($dynamic) {
-        rule("~ Lease {$lease[0]['address']} (MAC {$lease[0]['mac-address']}) masih dynamic -> make-static");
-        $changes++;
-        if ($apply) {
-            $api->comm('/ip/dhcp-server/lease/make-static', array('.id' => $lease[0]['.id']));
-            rule("= OK: lease dibuat statis");
+// 2. Static DHCP lease server — hanya relevan kalau server memang di jaringan
+//    DHCP router (LAN). Server di balik WireGuard/VPN punya IP tunnel yang bukan
+//    dari DHCP; lease tidak bisa dibuat dan tidak dibutuhkan karena dst-nat
+//    tetap sampai lewat route tunnel.
+$server_in_dhcp = false;
+$dhcp_nets = $api->comm('/ip/dhcp-server/network/print');
+if (is_array($dhcp_nets)) {
+    foreach ($dhcp_nets as $dhcp_net) {
+        if (MIG_ip_in_cidr(MIG_SERVER_IP, (string)($dhcp_net['address'] ?? ''))) {
+            $server_in_dhcp = true;
+            break;
+        }
+    }
+}
+
+if (MIG_SERVER_MAC === '') {
+    rule("= SKIP: MAC server kosong — lease DHCP statis tidak dibuat");
+} elseif (!$server_in_dhcp) {
+    rule("= SKIP: " . MIG_SERVER_IP . " di luar jaringan DHCP router (mis. WireGuard/VPN) — lease tidak diperlukan");
+} else {
+    $lease = $api->comm('/ip/dhcp-server/lease/print', array('?address' => MIG_SERVER_IP));
+    if (is_array($lease) && !empty($lease[0])) {
+        $dynamic = ($lease[0]['dynamic'] ?? 'false') === 'true';
+        if ($dynamic) {
+            rule("~ Lease {$lease[0]['address']} (MAC {$lease[0]['mac-address']}) masih dynamic -> make-static");
+            $changes++;
+            if ($apply) {
+                $api->comm('/ip/dhcp-server/lease/make-static', array('.id' => $lease[0]['.id']));
+                rule("= OK: lease dibuat statis");
+            }
+        } else {
+            rule("= SKIP: lease server sudah statis ({$lease[0]['mac-address']})");
         }
     } else {
-        rule("= SKIP: lease server sudah statis ({$lease[0]['mac-address']})");
-    }
-} else {
-    rule("+ /ip dhcp-server lease add address=" . MIG_SERVER_IP . " mac-address=" . MIG_SERVER_MAC . " (server belum punya lease; buat statis)");
-    $changes++;
-    if ($apply) {
-        $api->comm('/ip/dhcp-server/lease/add', array('address' => MIG_SERVER_IP, 'mac-address' => MIG_SERVER_MAC, 'comment' => 'server mikhmon (portal isolir)'));
-        rule("= OK: lease statis dibuat");
+        rule("+ /ip dhcp-server lease add address=" . MIG_SERVER_IP . " mac-address=" . MIG_SERVER_MAC . " (server belum punya lease; buat statis)");
+        $changes++;
+        if ($apply) {
+            $api->comm('/ip/dhcp-server/lease/add', array('address' => MIG_SERVER_IP, 'mac-address' => MIG_SERVER_MAC, 'comment' => 'server mikhmon (portal isolir)'));
+            rule("= OK: lease statis dibuat");
+        }
     }
 }
 
@@ -145,10 +182,24 @@ if (is_array($prof) && !empty($prof[0])) {
     rule("! Profil " . MIG_PROFILE . " TIDAK ADA — cek konfigurasi billing (isolir_profile).");
 }
 
-// 4. NAT redirect portal
+// 4. NAT redirect portal (buat bila belum ada, perbarui bila tujuannya berubah —
+//    mis. server dipindah dari IP LAN ke IP WireGuard).
 $nat = $api->comm('/ip/firewall/nat/print', array('?comment' => MIG_NAT_COMMENT));
 if (is_array($nat) && !empty($nat[0])) {
-    rule("= SKIP: NAT rule '" . MIG_NAT_COMMENT . "' sudah ada");
+    $cur_to = (string)($nat[0]['to-addresses'] ?? '');
+    $cur_port = (string)($nat[0]['to-ports'] ?? '');
+    if ($cur_to === MIG_SERVER_IP && $cur_port === MIG_SERVER_PORT) {
+        rule("= SKIP: NAT rule '" . MIG_NAT_COMMENT . "' sudah ada dan tujuannya benar");
+    } else {
+        rule("~ /ip firewall nat set " . MIG_NAT_COMMENT . " to-addresses=" . MIG_SERVER_IP . " to-ports=" . MIG_SERVER_PORT . " (sebelumnya {$cur_to}:{$cur_port})");
+        $changes++;
+        if ($apply) {
+            $api->comm('/ip/firewall/nat/set', array(
+                '.id' => $nat[0]['.id'], 'to-addresses' => MIG_SERVER_IP, 'to-ports' => MIG_SERVER_PORT
+            ));
+            rule("= OK: NAT rule diperbarui");
+        }
+    }
 } else {
     rule("+ /ip firewall nat add chain=dstnat src-address=" . MIG_NETWORK . " protocol=tcp dst-port=80 action=dst-nat to-addresses=" . MIG_SERVER_IP . " to-ports=" . MIG_SERVER_PORT);
     $changes++;
@@ -209,7 +260,17 @@ if (MIG_PORTAL_DOMAIN === '') {
 } else {
 $natHttps = $api->comm('/ip/firewall/nat/print', array('?comment' => MIG_HTTPS_NAT_COMMENT));
 if (is_array($natHttps) && !empty($natHttps[0])) {
-    rule("= SKIP: NAT HTTPS '" . MIG_HTTPS_NAT_COMMENT . "' sudah ada");
+    $cur_to = (string)($natHttps[0]['to-addresses'] ?? '');
+    if ($cur_to === MIG_SERVER_IP) {
+        rule("= SKIP: NAT HTTPS '" . MIG_HTTPS_NAT_COMMENT . "' sudah ada dan tujuannya benar");
+    } else {
+        rule("~ /ip firewall nat set " . MIG_HTTPS_NAT_COMMENT . " to-addresses=" . MIG_SERVER_IP . " (sebelumnya {$cur_to})");
+        $changes++;
+        if ($apply) {
+            $api->comm('/ip/firewall/nat/set', array('.id' => $natHttps[0]['.id'], 'to-addresses' => MIG_SERVER_IP));
+            rule("= OK: NAT HTTPS diperbarui");
+        }
+    }
 } else {
     rule("+ /ip firewall nat add chain=dstnat src-address=" . MIG_NETWORK . " protocol=tcp dst-port=443 action=dst-nat to-addresses=" . MIG_SERVER_IP . " to-ports=443 comment=" . MIG_HTTPS_NAT_COMMENT);
     $changes++;
@@ -226,7 +287,17 @@ if (is_array($natHttps) && !empty($natHttps[0])) {
 // 8. DNS statis domain portal -> IP server (dijawab router setelah langkah 6).
 $dnsStatic = $api->comm('/ip/dns/static/print', array('?name' => MIG_PORTAL_DOMAIN));
 if (is_array($dnsStatic) && !empty($dnsStatic[0])) {
-    rule("= SKIP: DNS statis " . MIG_PORTAL_DOMAIN . " sudah ada ({$dnsStatic[0]['address']})");
+    $cur_addr = (string)($dnsStatic[0]['address'] ?? '');
+    if ($cur_addr === MIG_SERVER_IP) {
+        rule("= SKIP: DNS statis " . MIG_PORTAL_DOMAIN . " sudah ada dan benar ({$cur_addr})");
+    } else {
+        rule("~ /ip dns static set " . MIG_PORTAL_DOMAIN . " address=" . MIG_SERVER_IP . " (sebelumnya {$cur_addr})");
+        $changes++;
+        if ($apply) {
+            $api->comm('/ip/dns/static/set', array('.id' => $dnsStatic[0]['.id'], 'address' => MIG_SERVER_IP));
+            rule("= OK: DNS statis diperbarui");
+        }
+    }
 } else {
     rule("+ /ip dns static add name=" . MIG_PORTAL_DOMAIN . " address=" . MIG_SERVER_IP);
     $changes++;

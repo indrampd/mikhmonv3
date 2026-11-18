@@ -10,6 +10,10 @@ if (PHP_SAPI !== 'cli') {
     exit('CLI only');
 }
 
+// include/config.php (fallback kredensial router) membaca REQUEST_URI; di CLI
+// kunci itu tidak ada dan hanya memunculkan warning di log cron.
+$_SERVER['REQUEST_URI'] = $_SERVER['REQUEST_URI'] ?? '';
+
 require_once dirname(__DIR__) . '/lib/isolir_engine.class.php';
 
 MikhmonIsolirEngine::run(array(

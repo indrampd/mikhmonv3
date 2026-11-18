@@ -115,6 +115,8 @@ $iso_nat_ok = false;
 $iso_https_ok = false;
 $iso_dnsnat_ok = false;
 $iso_dnsstatic_ok = false;
+$iso_nat_bad = 'belum ada';
+$iso_dnsstatic_bad = 'belum ada';
 if (!empty($API->connected)) {
     $pools = $API->comm('/ip/pool/print');
     if (is_array($pools)) {
@@ -126,15 +128,35 @@ if (!empty($API->connected)) {
     if (is_array($isoProfiles) && !empty($isoProfiles[0])) {
         $iso_profile_ok = (($isoProfiles[0]['remote-address'] ?? '') === $iso_pool);
     }
+    // NAT dianggap benar bukan hanya "ada", tapi tujuannya cocok dengan isian
+    // dashboard — salah IP/port adalah penyebab tersering portal tidak terbuka.
     $isoNat = $API->comm('/ip/firewall/nat/print', array('?comment' => 'isolir-portal'));
-    $iso_nat_ok = is_array($isoNat) && !empty($isoNat[0]);
+    if (is_array($isoNat) && !empty($isoNat[0])) {
+        $nat_target = (string)($isoNat[0]['to-addresses'] ?? '');
+        $nat_port = (string)($isoNat[0]['to-ports'] ?? '');
+        $want_target = (string)($iso_cfg['server_ip'] ?? '');
+        $want_port = (string)($iso_cfg['server_port'] ?? '8081');
+        if ($nat_target === $want_target && ($nat_port === '' || $nat_port === $want_port)) {
+            $iso_nat_ok = true;
+        } else {
+            $iso_nat_bad = 'terpasang tapi mengarah ke ' . ($nat_target !== '' ? $nat_target : '?')
+                . ($nat_port !== '' ? ':' . $nat_port : '');
+        }
+    }
     $isoNatDns = $API->comm('/ip/firewall/nat/print', array('?comment' => 'isolir-dns', '?protocol' => 'udp'));
     $iso_dnsnat_ok = is_array($isoNatDns) && !empty($isoNatDns[0]);
     if ($iso_domain !== '') {
         $isoNatHttps = $API->comm('/ip/firewall/nat/print', array('?comment' => 'isolir-https'));
         $iso_https_ok = is_array($isoNatHttps) && !empty($isoNatHttps[0]);
         $isoDnsStatic = $API->comm('/ip/dns/static/print', array('?name' => $iso_domain));
-        $iso_dnsstatic_ok = is_array($isoDnsStatic) && !empty($isoDnsStatic[0]);
+        if (is_array($isoDnsStatic) && !empty($isoDnsStatic[0])) {
+            $dns_addr = (string)($isoDnsStatic[0]['address'] ?? '');
+            if ($dns_addr === (string)($iso_cfg['server_ip'] ?? '')) {
+                $iso_dnsstatic_ok = true;
+            } else {
+                $iso_dnsstatic_bad = 'ada tapi mengarah ke ' . ($dns_addr !== '' ? $dns_addr : '?');
+            }
+        }
     }
 }
 ?>
@@ -242,12 +264,13 @@ if (!empty($API->connected)) {
                   <div class="fg-12 pd-b-5">
                     <label class="label-block">Telegram Bot Token</label>
                     <input class="form-control" type="password" name="bot_token" value="<?= htmlspecialchars($config['token'] ?? ''); ?>" placeholder="123456789:ABCdefGhIjkLmNoPqRsTuVwXyZ" autocomplete="off">
+                    <small class="hint-text">Dari <code>@BotFather</code> &rarr; <code>/newbot</code> atau <code>/token</code>. Format <code>&lt;angka&gt;:&lt;secret&gt;</code>.</small>
                   </div>
 
                   <div class="fg-12 pd-b-5">
                     <label class="label-block">Webhook Secret Token</label>
                     <input class="form-control" type="text" name="webhook_secret" value="<?= htmlspecialchars($config['webhook_secret'] ?? ''); ?>" placeholder="Random secret string untuk validasi request Telegram" autocomplete="off">
-                    <small class="hint-text">Dipakai Telegram pada header <code>X-Telegram-Bot-Api-Secret-Token</code>.</small>
+                    <small class="hint-text">String acak &ge;16 karakter (mis. hasil <code>openssl rand -hex 32</code>). Dipakai Telegram pada header <code>X-Telegram-Bot-Api-Secret-Token</code>.</small>
                   </div>
                 </div>
               </details>
@@ -269,7 +292,7 @@ if (!empty($API->connected)) {
                           <option value="<?= htmlspecialchars($profile_name); ?>"<?= $profile_name === $cur_isolir ? ' selected' : ''; ?>><?= htmlspecialchars($profile_name); ?><?= $profile_rate_label !== '' ? ' — ' . htmlspecialchars($profile_rate_label) : ''; ?></option>
                         <?php endforeach; ?>
                       </select>
-                      <small class="hint-text">Diambil langsung dari <code>/ppp/profile</code> router &mdash; <?= count($ppp_profiles); ?> profil.</small>
+                      <small class="hint-text">Profil yang dipasang ke pelanggan menunggak; <code>remote-address</code>-nya diarahkan ke pool isolir. Diambil dari <code>/ppp/profile</code> router &mdash; <?= count($ppp_profiles); ?> profil.</small>
                     <?php else: ?>
                       <input class="form-control" id="_isolir_profile" type="text" name="isolir_profile" value="<?= htmlspecialchars($cur_isolir); ?>" placeholder="pppoe-ISOLIR">
                       <small class="hint-text">Router tidak terjangkau &mdash; daftar profil tidak bisa dimuat.</small>
@@ -279,6 +302,7 @@ if (!empty($API->connected)) {
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_cutoff_day">Tgl Batas Bayar</label>
                     <input class="form-control" id="_cutoff_day" type="number" min="1" max="28" name="cutoff_day" value="<?= (int)($config['cutoff_day'] ?? 10); ?>">
+                    <small class="hint-text">Tanggal jatuh tempo tiap bulan (1&ndash;28). Lewat tanggal ini status jadi <em>tenggang</em>, lalu diisolir oleh mesin isolir.</small>
                   </div>
                 </div>
               </details>
@@ -289,13 +313,13 @@ if (!empty($API->connected)) {
                   <div class="fg-6 pd-b-5">
                     <label class="label-block">Owner IDs</label>
                     <input class="form-control" type="text" name="owner_ids" value="<?= htmlspecialchars(implode(', ', $config['owner_ids'] ?? array())); ?>" placeholder="562035561">
-                    <small class="hint-text">Telegram User ID yang punya akses penuh, pisahkan dengan koma.</small>
+                    <small class="hint-text">Telegram User ID yang punya akses penuh, pisahkan dengan koma. Dapat dilihat lewat <code>/start</code> ke bot atau <code>@userinfobot</code>.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block">Group IDs</label>
                     <input class="form-control" type="text" name="group_ids" value="<?= htmlspecialchars(implode(', ', $config['group_ids'] ?? array())); ?>" placeholder="-367197368">
-                    <small class="hint-text">Chat ID grup Telegram yang boleh mengakses bot.</small>
+                    <small class="hint-text">Chat ID grup (angkanya negatif) yang boleh memakai bot. Tambahkan bot ke grup dulu agar ID-nya muncul.</small>
                   </div>
 
                   <div class="fg-12 pd-b-5">
@@ -305,6 +329,7 @@ if (!empty($API->connected)) {
                       <option value="lihat" <?= ($config['group_scope'] ?? '') === 'lihat' ? 'selected' : ''; ?>>Lihat Saja &mdash; /tagihan, /cek</option>
                       <option value="penuh" <?= ($config['group_scope'] ?? '') === 'penuh' ? 'selected' : ''; ?>>Penuh &mdash; semua perintah termasuk /isolir</option>
                     </select>
+                    <small class="hint-text">Batas perintah yang boleh dijalankan dari grup. Owner (Owner IDs) selalu punya akses penuh.</small>
                   </div>
 
                   <div class="fg-12 pd-b-5">
@@ -345,71 +370,89 @@ if (!empty($API->connected)) {
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_hs_batch_max">Batas Batch /hsgen</label>
                     <input class="form-control" id="_hs_batch_max" type="number" min="1" max="500" name="hs_batch_max" value="<?= (int)($hs_cfg['batch_max'] ?? 50); ?>">
+                    <small class="hint-text">Jumlah voucher maksimum sekali <code>/hsgen</code>.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_hs_gen_prefix">Prefix Nama Voucher</label>
                     <input class="form-control" id="_hs_gen_prefix" type="text" maxlength="6" name="hs_gen_prefix" value="<?= htmlspecialchars($hs_cfg['gen_prefix'] ?? ''); ?>" placeholder="">
+                    <small class="hint-text">Awalan kode voucher, maks 6 karakter (mis. <code>HS</code>). Kosong = tanpa awalan.</small>
                   </div>
                 </div>
               </details>
 
               <details class="fg-12 bot-group" open>
                 <summary><i class="fa fa-caret-right bot-caret"></i><i class="fa fa-ban text-red"></i> Portal Isolir</summary>
-                <small class="hint-text" style="display:block; margin:-2px 0 8px;">Tampilan halaman yang dilihat pelanggan terisolir saat membuka browser (http://).</small>
+                <div class="hint-text" style="margin:-2px 0 10px; line-height:1.7;">
+                  Halaman yang dilihat pelanggan terisolir saat membuka browser. Alurnya:
+                  pelanggan masuk <strong>subnet isolir</strong> &rarr; router <strong>dst-nat</strong> ke
+                  <strong>IP:port server</strong> &rarr; portal tampil. Isian di sini dipakai
+                  <code>app/cron/isolir-migrate.php</code> untuk membuat pool, NAT, dan DNS statis di router.
+                </div>
                 <div class="field-grid">
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_contact">Nama Kontak</label>
                     <input class="form-control" id="_portal_contact" type="text" name="portal_contact" value="<?= htmlspecialchars($iso_cfg['contact'] ?? 'Admin'); ?>" placeholder="Admin">
+                    <small class="hint-text">Nama admin/ISP yang tampil di halaman portal.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_phone">No. WhatsApp</label>
                     <input class="form-control" id="_portal_phone" type="text" name="portal_phone" value="<?= htmlspecialchars($iso_cfg['phone'] ?? ''); ?>" placeholder="08xxxxxxxxxx">
-                    <small class="hint-text">Kosong = tombol WhatsApp tidak tampil di portal.</small>
+                    <small class="hint-text">Boleh format <code>08xx</code> atau <code>62xx</code>. Kosong = tombol WhatsApp tidak tampil.</small>
                   </div>
 
                   <div class="fg-12 pd-b-5">
                     <label class="label-block" for="_portal_message">Pesan Kustom Portal</label>
                     <textarea class="form-control" id="_portal_message" name="portal_message" rows="2" placeholder="Kosong = pesan bawaan"><?= htmlspecialchars($iso_cfg['message'] ?? ''); ?></textarea>
+                    <small class="hint-text">Tampil di bawah judul portal. Kosong = pesan bawaan.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_network">Subnet Isolir</label>
                     <input class="form-control" id="_portal_network" type="text" name="portal_network" value="<?= htmlspecialchars($iso_cfg['network'] ?? '192.168.6.0/24'); ?>">
-                    <small class="hint-text">Harus sama dengan range pool di router.</small>
+                    <small class="hint-text">Subnet IP pelanggan saat diisolir, format CIDR (mis. <code>192.168.6.0/24</code>). Pool isolir dibuat dari subnet ini dan harus sama dengan <code>remote-address</code> profil isolir.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_pool">Nama Pool Isolir</label>
                     <input class="form-control" id="_portal_pool" type="text" name="portal_pool" value="<?= htmlspecialchars($iso_cfg['pool'] ?? 'pppoe_pool_isolir'); ?>">
+                    <small class="hint-text">Nama pool di <code>/ip pool</code> router. Boleh nama baru &mdash; script migrasi akan membuatnya.</small>
                   </div>
 
-                  <div class="fg-6 pd-b-5">
+                  <div class="fg-12 pd-b-5">
                     <label class="label-block" for="_portal_server_ip">IP Server Portal</label>
                     <input class="form-control" id="_portal_server_ip" type="text" name="portal_server_ip" value="<?= htmlspecialchars($iso_cfg['server_ip'] ?? ''); ?>" placeholder="192.168.1.10">
-                    <small class="hint-text">IP LAN server Mikhmon — tujuan dst-nat portal di router.</small>
+                    <small class="hint-text">
+                      IP server ini yang <strong>bisa dijangkau router</strong> &mdash; tujuan dst-nat.<br>
+                      &bull; Server sejajar LAN: IP LAN server, mis. <code>192.168.1.10</code>.<br>
+                      &bull; Server lewat WireGuard/VPN: IP tunnel server, mis. <code>10.10.0.1</code> (bukan IP LAN).<br>
+                      Jangan diisi IP router.
+                    </small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
-                    <label class="label-block" for="_portal_server_mac">MAC Server (lease DHCP)</label>
+                    <label class="label-block" for="_portal_server_mac">MAC Server (opsional)</label>
                     <input class="form-control" id="_portal_server_mac" type="text" name="portal_server_mac" value="<?= htmlspecialchars($iso_cfg['server_mac'] ?? ''); ?>" placeholder="02:00:00:00:00:01">
+                    <small class="hint-text">Hanya untuk server di LAN yang IP-nya dari DHCP &mdash; dipakai membuat lease statis agar IP tidak berubah. Kosongkan bila server lewat WireGuard/VPN atau IP-nya statis.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_server_port">Port Web Server</label>
                     <input class="form-control" id="_portal_server_port" type="text" name="portal_server_port" value="<?= htmlspecialchars($iso_cfg['server_port'] ?? '8081'); ?>">
+                    <small class="hint-text">Port portal di server, default <code>8081</code> (pemetaan <code>8081:80</code> di docker-compose). Harus sama dengan port yang di-publish.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_domain">Domain Portal (opsional)</label>
                     <input class="form-control" id="_portal_domain" type="text" name="portal_domain" value="<?= htmlspecialchars($iso_cfg['domain'] ?? ''); ?>" placeholder="isolir.example.com">
-                    <small class="hint-text">Kosong = portal hanya via HTTP. Diisi = NAT 443 + DNS statis aktif.</small>
+                    <small class="hint-text">Kosong = portal hanya HTTP. Diisi = NAT 443 + DNS statis aktif; sertifikat di server harus valid untuk domain ini.</small>
                   </div>
 
                   <div class="fg-6 pd-b-5">
                     <label class="label-block" for="_portal_tagline">Tagline Portal</label>
                     <input class="form-control" id="_portal_tagline" type="text" name="portal_tagline" value="<?= htmlspecialchars($iso_cfg['tagline'] ?? 'Layanan wifi termurah'); ?>">
+                    <small class="hint-text">Teks kecil di header portal (brand/ISP).</small>
                   </div>
                 </div>
               </details>
@@ -514,12 +557,12 @@ if (!empty($API->connected)) {
       $iso_pre_items = array(
         array($iso_pool_ok, 'Pool <code>' . htmlspecialchars($iso_pool) . '</code>', 'ada', 'belum ada di router', 'red'),
         array($iso_profile_ok, 'Profil isolir menunjuk pool', 'benar', 'belum (masih pool lama)', 'yellow'),
-        array($iso_nat_ok, 'NAT redirect <code>isolir-portal</code>', 'terpasang', 'belum ada', 'red'),
+        array($iso_nat_ok, 'NAT redirect <code>isolir-portal</code>', 'terpasang', htmlspecialchars($iso_nat_bad), 'red'),
         array($iso_dnsnat_ok, 'Redirect DNS <code>isolir-dns</code>', 'terpasang', 'belum ada', 'yellow'),
       );
       if ($iso_domain !== '') {
         $iso_pre_items[] = array($iso_https_ok, 'NAT HTTPS <code>isolir-https</code>', 'terpasang', 'belum ada (portal https)', 'yellow');
-        $iso_pre_items[] = array($iso_dnsstatic_ok, 'DNS statis <code>' . htmlspecialchars($iso_domain) . '</code>', 'ada', 'belum ada', 'yellow');
+        $iso_pre_items[] = array($iso_dnsstatic_ok, 'DNS statis <code>' . htmlspecialchars($iso_domain) . '</code>', 'ada', htmlspecialchars($iso_dnsstatic_bad), 'yellow');
       }
       $iso_pre_count = 0;
       $iso_pre_all = true;
@@ -618,7 +661,11 @@ if (!empty($API->connected)) {
               </div>
               <?php endforeach; ?>
             </div>
-            <small class="hint-text"><i class="fa fa-wrench"></i> Prasyarat dipasang oleh <code>app/cron/isolir-migrate.php</code> (--check lalu --apply).</small>
+            <small class="hint-text"><i class="fa fa-wrench"></i> Perubahan field Portal Isolir (subnet, IP, port, domain, pool) baru berlaku di router setelah diterapkan di sini.</small>
+            <form method="POST" action="./?billing=overview&session=<?= $session; ?>" style="margin-top:8px; display:flex; flex-wrap:wrap; gap:6px;">
+              <button type="submit" name="portal_migrate_check" class="btn bg-secondary radius-3 pd-5" style="font-size:12px;"><i class="fa fa-search"></i> Cek Perubahan</button>
+              <button type="submit" name="portal_migrate_apply" class="btn bg-primary radius-3 pd-5" style="font-size:12px;" onclick="return confirm('Terapkan konfigurasi portal ke router sekarang? Pastikan konfigurasi router sudah di-backup.')"><i class="fa fa-upload"></i> Terapkan ke Router</button>
+            </form>
           </div>
         </div>
       </div>
